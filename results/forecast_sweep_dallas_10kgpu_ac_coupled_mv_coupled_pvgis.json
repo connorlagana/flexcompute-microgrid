@@ -1,0 +1,346 @@
+{
+  "base_sizing": {
+    "battery_duration_h": 4.0,
+    "battery_mw": 122.57964589816876,
+    "battery_mwh": 490.31858359267505,
+    "solar_mw_dc": 199.56534201773954
+  },
+  "horizon_sweep": {
+    "runs": {
+      "H12": {
+        "compute_units": 7788.087464093389,
+        "cyclic_evaluations": 2,
+        "cyclic_soc_residual_mwh": 0.0,
+        "forecast_nrmse_24h_pct_of_capacity": 9.852955172112923,
+        "horizon_h": 12,
+        "hours_throttled": 3295,
+        "hours_with_shortfall": 19,
+        "involuntary_shortfall_mwh": 15.661618513465452,
+        "seed": 20260815,
+        "sigma_24h": 0.15,
+        "solar_curtailed_pct": 44.18207253674259,
+        "wall_time_s": 98.57
+      },
+      "H24": {
+        "compute_units": 8119.816747093235,
+        "cyclic_evaluations": 2,
+        "cyclic_soc_residual_mwh": 0.0,
+        "forecast_nrmse_24h_pct_of_capacity": 9.852955172112923,
+        "horizon_h": 24,
+        "hours_throttled": 2198,
+        "hours_with_shortfall": 1,
+        "involuntary_shortfall_mwh": 0.1474759258887567,
+        "seed": 20260815,
+        "sigma_24h": 0.15,
+        "solar_curtailed_pct": 39.97301094000454,
+        "wall_time_s": 106.83
+      },
+      "H96": {
+        "compute_units": 8131.025719997504,
+        "cyclic_evaluations": 2,
+        "cyclic_soc_residual_mwh": 0.0,
+        "forecast_nrmse_24h_pct_of_capacity": 9.852955172112923,
+        "horizon_h": 96,
+        "hours_throttled": 2164,
+        "hours_with_shortfall": 1,
+        "involuntary_shortfall_mwh": 0.060206794628675175,
+        "seed": 20260815,
+        "sigma_24h": 0.15,
+        "solar_curtailed_pct": 39.84460399051489,
+        "wall_time_s": 153.0
+      }
+    },
+    "scale": 0.4,
+    "sigma_24h": 0.15
+  },
+  "mpc_horizon_hours": 48,
+  "reference_sigma_24h": 0.15,
+  "scales": {
+    "0.40": {
+      "runs": {
+        "fixed_load": {
+          "compute_units": 7941.195783041179,
+          "cyclic_evaluations": 2,
+          "cyclic_soc_residual_mwh": 0.0,
+          "forecast_nrmse_24h_pct_of_capacity": null,
+          "hours_throttled": 0,
+          "hours_with_shortfall": 976,
+          "involuntary_shortfall_mwh": 7594.772134022551,
+          "solar_curtailed_pct": 39.67807562409005,
+          "wall_time_s": 0.08
+        },
+        "forecast_mpc_sigma0.05_seed20260815": {
+          "compute_units": 8153.519148781634,
+          "cyclic_evaluations": 2,
+          "cyclic_soc_residual_mwh": 0.0,
+          "forecast_nrmse_24h_pct_of_capacity": 3.539988866666074,
+          "horizon_h": 48,
+          "hours_throttled": 2275,
+          "hours_with_shortfall": 1,
+          "involuntary_shortfall_mwh": 0.044875495165696555,
+          "seed": 20260815,
+          "sigma_24h": 0.05,
+          "solar_curtailed_pct": 39.727105269456764,
+          "wall_time_s": 117.9
+        },
+        "forecast_mpc_sigma0.10_seed20260815": {
+          "compute_units": 8144.804675014291,
+          "cyclic_evaluations": 2,
+          "cyclic_soc_residual_mwh": 0.0,
+          "forecast_nrmse_24h_pct_of_capacity": 6.815969503589718,
+          "horizon_h": 48,
+          "hours_throttled": 2223,
+          "hours_with_shortfall": 1,
+          "involuntary_shortfall_mwh": 0.08027572617155354,
+          "seed": 20260815,
+          "sigma_24h": 0.1,
+          "solar_curtailed_pct": 39.77488293818726,
+          "wall_time_s": 123.51
+        },
+        "forecast_mpc_sigma0.15_seed1": {
+          "compute_units": 8131.972858037649,
+          "cyclic_evaluations": 2,
+          "cyclic_soc_residual_mwh": 0.0,
+          "forecast_nrmse_24h_pct_of_capacity": 10.006856861549384,
+          "horizon_h": 48,
+          "hours_throttled": 2172,
+          "hours_with_shortfall": 2,
+          "involuntary_shortfall_mwh": 1.6749537572675015,
+          "seed": 1,
+          "sigma_24h": 0.15,
+          "solar_curtailed_pct": 39.82943287567329,
+          "wall_time_s": 118.56
+        },
+        "forecast_mpc_sigma0.15_seed2": {
+          "compute_units": 8130.9114089863815,
+          "cyclic_evaluations": 2,
+          "cyclic_soc_residual_mwh": 0.0,
+          "forecast_nrmse_24h_pct_of_capacity": 9.624059409636965,
+          "horizon_h": 48,
+          "hours_throttled": 2201,
+          "hours_with_shortfall": 2,
+          "involuntary_shortfall_mwh": 1.1827336545255673,
+          "seed": 2,
+          "sigma_24h": 0.15,
+          "solar_curtailed_pct": 39.842439938810955,
+          "wall_time_s": 118.31
+        },
+        "forecast_mpc_sigma0.15_seed20260815": {
+          "compute_units": 8132.427862862459,
+          "cyclic_evaluations": 2,
+          "cyclic_soc_residual_mwh": 0.0,
+          "forecast_nrmse_24h_pct_of_capacity": 9.852955172112923,
+          "horizon_h": 48,
+          "hours_throttled": 2177,
+          "hours_with_shortfall": 1,
+          "involuntary_shortfall_mwh": 0.12041358925732804,
+          "seed": 20260815,
+          "sigma_24h": 0.15,
+          "solar_curtailed_pct": 39.84976605291272,
+          "wall_time_s": 124.69
+        },
+        "forecast_mpc_sigma0.20_seed20260815": {
+          "compute_units": 8113.517776892872,
+          "cyclic_evaluations": 2,
+          "cyclic_soc_residual_mwh": 0.0,
+          "forecast_nrmse_24h_pct_of_capacity": 12.744720535120734,
+          "horizon_h": 48,
+          "hours_throttled": 2186,
+          "hours_with_shortfall": 1,
+          "involuntary_shortfall_mwh": 0.0802757261715592,
+          "seed": 20260815,
+          "sigma_24h": 0.2,
+          "solar_curtailed_pct": 39.98274265563744,
+          "wall_time_s": 119.6
+        },
+        "forecast_mpc_sigma0.30_seed20260815": {
+          "compute_units": 8071.7604725978945,
+          "cyclic_evaluations": 2,
+          "cyclic_soc_residual_mwh": 0.0,
+          "forecast_nrmse_24h_pct_of_capacity": 18.12842114789299,
+          "horizon_h": 48,
+          "hours_throttled": 2192,
+          "hours_with_shortfall": 1,
+          "involuntary_shortfall_mwh": 0.12041358925732926,
+          "seed": 20260815,
+          "sigma_24h": 0.3,
+          "solar_curtailed_pct": 40.318257639293755,
+          "wall_time_s": 118.87
+        },
+        "perfect_foresight_annual": {
+          "compute_units": 8160.812225479905,
+          "cyclic_evaluations": 2,
+          "cyclic_soc_residual_mwh": 0.0,
+          "forecast_nrmse_24h_pct_of_capacity": null,
+          "hours_throttled": 2279,
+          "hours_with_shortfall": 0,
+          "involuntary_shortfall_mwh": 7.032152637975742e-13,
+          "solar_curtailed_pct": 39.67807562409005,
+          "wall_time_s": 0.98
+        },
+        "perfect_foresight_mpc": {
+          "compute_units": 8159.631984435655,
+          "cyclic_evaluations": 2,
+          "cyclic_soc_residual_mwh": 0.0,
+          "forecast_nrmse_24h_pct_of_capacity": null,
+          "horizon_h": 48,
+          "hours_throttled": 2284,
+          "hours_with_shortfall": 0,
+          "involuntary_shortfall_mwh": 1.887379141862766e-14,
+          "solar_curtailed_pct": 39.67807562409005,
+          "wall_time_s": 112.22
+        }
+      },
+      "sizing": {
+        "battery_duration_h": 4.0,
+        "battery_mw": 49.03185835926751,
+        "battery_mwh": 196.12743343707004,
+        "solar_mw_dc": 79.82613680709582
+      }
+    },
+    "1.00": {
+      "runs": {
+        "fixed_load": {
+          "compute_units": 8717.453227810338,
+          "cyclic_evaluations": 2,
+          "cyclic_soc_residual_mwh": 0.0,
+          "forecast_nrmse_24h_pct_of_capacity": null,
+          "hours_throttled": 0,
+          "hours_with_shortfall": 51,
+          "involuntary_shortfall_mwh": 396.1401270999118,
+          "solar_curtailed_pct": 73.43852764928178,
+          "wall_time_s": 0.09
+        },
+        "forecast_mpc_sigma0.05_seed20260815": {
+          "compute_units": 8707.3209178311,
+          "cyclic_evaluations": 2,
+          "cyclic_soc_residual_mwh": 5.684341886080802e-14,
+          "forecast_nrmse_24h_pct_of_capacity": 3.5399888666660746,
+          "horizon_h": 48,
+          "hours_throttled": 311,
+          "hours_with_shortfall": 0,
+          "involuntary_shortfall_mwh": 0.0,
+          "seed": 20260815,
+          "sigma_24h": 0.05,
+          "solar_curtailed_pct": 73.58548893726868,
+          "wall_time_s": 122.09
+        },
+        "forecast_mpc_sigma0.10_seed20260815": {
+          "compute_units": 8704.846060138603,
+          "cyclic_evaluations": 2,
+          "cyclic_soc_residual_mwh": 0.0,
+          "forecast_nrmse_24h_pct_of_capacity": 6.815969503589719,
+          "horizon_h": 48,
+          "hours_throttled": 307,
+          "hours_with_shortfall": 0,
+          "involuntary_shortfall_mwh": 0.0,
+          "seed": 20260815,
+          "sigma_24h": 0.1,
+          "solar_curtailed_pct": 73.59389503219943,
+          "wall_time_s": 118.21
+        },
+        "forecast_mpc_sigma0.15_seed1": {
+          "compute_units": 8710.153109458586,
+          "cyclic_evaluations": 2,
+          "cyclic_soc_residual_mwh": 0.0,
+          "forecast_nrmse_24h_pct_of_capacity": 10.006856861549384,
+          "horizon_h": 48,
+          "hours_throttled": 284,
+          "hours_with_shortfall": 0,
+          "involuntary_shortfall_mwh": 1.7763568394002505e-15,
+          "seed": 1,
+          "sigma_24h": 0.15,
+          "solar_curtailed_pct": 73.56845102920433,
+          "wall_time_s": 118.76
+        },
+        "forecast_mpc_sigma0.15_seed2": {
+          "compute_units": 8709.834716928468,
+          "cyclic_evaluations": 2,
+          "cyclic_soc_residual_mwh": 0.0,
+          "forecast_nrmse_24h_pct_of_capacity": 9.624059409636963,
+          "horizon_h": 48,
+          "hours_throttled": 240,
+          "hours_with_shortfall": 0,
+          "involuntary_shortfall_mwh": 0.0,
+          "seed": 2,
+          "sigma_24h": 0.15,
+          "solar_curtailed_pct": 73.56038029261953,
+          "wall_time_s": 118.16
+        },
+        "forecast_mpc_sigma0.15_seed20260815": {
+          "compute_units": 8702.087412116658,
+          "cyclic_evaluations": 2,
+          "cyclic_soc_residual_mwh": 0.0,
+          "forecast_nrmse_24h_pct_of_capacity": 9.852955172112923,
+          "horizon_h": 48,
+          "hours_throttled": 309,
+          "hours_with_shortfall": 0,
+          "involuntary_shortfall_mwh": 0.0,
+          "seed": 20260815,
+          "sigma_24h": 0.15,
+          "solar_curtailed_pct": 73.60650793986912,
+          "wall_time_s": 118.6
+        },
+        "forecast_mpc_sigma0.20_seed20260815": {
+          "compute_units": 8695.099627000494,
+          "cyclic_evaluations": 2,
+          "cyclic_soc_residual_mwh": 0.0,
+          "forecast_nrmse_24h_pct_of_capacity": 12.744720535120733,
+          "horizon_h": 48,
+          "hours_throttled": 324,
+          "hours_with_shortfall": 0,
+          "involuntary_shortfall_mwh": 0.0,
+          "seed": 20260815,
+          "sigma_24h": 0.2,
+          "solar_curtailed_pct": 73.63872628073187,
+          "wall_time_s": 118.29
+        },
+        "forecast_mpc_sigma0.30_seed20260815": {
+          "compute_units": 8682.946693605685,
+          "cyclic_evaluations": 2,
+          "cyclic_soc_residual_mwh": 0.0,
+          "forecast_nrmse_24h_pct_of_capacity": 18.128421147892993,
+          "horizon_h": 48,
+          "hours_throttled": 386,
+          "hours_with_shortfall": 0,
+          "involuntary_shortfall_mwh": 0.0,
+          "seed": 20260815,
+          "sigma_24h": 0.3,
+          "solar_curtailed_pct": 73.70242989363136,
+          "wall_time_s": 118.24
+        },
+        "perfect_foresight_annual": {
+          "compute_units": 8737.74298955484,
+          "cyclic_evaluations": 2,
+          "cyclic_soc_residual_mwh": 0.0,
+          "forecast_nrmse_24h_pct_of_capacity": null,
+          "hours_throttled": 222,
+          "hours_with_shortfall": 0,
+          "involuntary_shortfall_mwh": 1.4654943925052066e-13,
+          "solar_curtailed_pct": 73.43852764928178,
+          "wall_time_s": 0.49
+        },
+        "perfect_foresight_mpc": {
+          "compute_units": 8709.774532537569,
+          "cyclic_evaluations": 2,
+          "cyclic_soc_residual_mwh": 0.0,
+          "forecast_nrmse_24h_pct_of_capacity": null,
+          "horizon_h": 48,
+          "hours_throttled": 333,
+          "hours_with_shortfall": 0,
+          "involuntary_shortfall_mwh": 0.0,
+          "solar_curtailed_pct": 73.58057796839815,
+          "wall_time_s": 117.64
+        }
+      },
+      "sizing": {
+        "battery_duration_h": 4.0,
+        "battery_mw": 122.57964589816876,
+        "battery_mwh": 490.31858359267505,
+        "solar_mw_dc": 199.56534201773954
+      }
+    }
+  },
+  "scenario": "dallas_10kgpu_ac_coupled_mv_coupled_pvgis",
+  "seed": 20260815
+}

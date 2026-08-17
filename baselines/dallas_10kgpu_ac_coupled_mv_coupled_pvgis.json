@@ -1,0 +1,268 @@
+{
+  "design_load_mw": 14.16638399347454,
+  "fixed_sizing_probes": [
+    {
+      "audit": {
+        "battery_state_max_abs_mw": 1.4210854715202004e-14,
+        "bus_balance_max_abs_mw": 1.7763568394002505e-15,
+        "charge_max_mw": 42.499152,
+        "discharge_max_mw": 15.17166641933499,
+        "power_limit_mw": 42.499152,
+        "pv_accounting_max_abs_mw": 2.842170943040401e-14,
+        "soc_capacity_mwh": 169.996608,
+        "soc_max_mwh": 169.996608,
+        "soc_min_mwh": -1.7763568394002505e-15,
+        "unbooked_pv_mwh": 7.053385653321698e-15
+      },
+      "battery_multiple_of_design": 3.0,
+      "metrics": {
+        "battery_charged_mwh": 55329.192157024336,
+        "battery_cycles_per_year": 326.2223303480522,
+        "battery_discharged_mwh": 55456.68961302434,
+        "battery_duration_h": 4.0,
+        "battery_mw": 42.499152,
+        "battery_mwh": 169.996608,
+        "energy_served_pct": 93.6919054067596,
+        "hours_with_unmet_load": 702,
+        "load_served_mwh": 84680.49622924303,
+        "soc_end_mwh": 0.0,
+        "soc_mean_mwh": 100.83476596917198,
+        "soc_min_mwh": -1.7763568394002505e-15,
+        "soc_start_mwh": 127.497456,
+        "solar_curtailed_mwh": 202260.9094509849,
+        "solar_curtailed_pct": 64.92420371515104,
+        "solar_generation_mwh": 311533.90858421,
+        "solar_mw_dc": 141.66384,
+        "unmet_load_mwh": 5701.373860393953,
+        "uptime_pct": 91.98630136986301
+      },
+      "solar_multiple_of_design": 10.0
+    },
+    {
+      "audit": {
+        "battery_state_max_abs_mw": 2.842170943040401e-14,
+        "bus_balance_max_abs_mw": 1.7763568394002505e-15,
+        "charge_max_mw": 99.164688,
+        "discharge_max_mw": 15.17166641933499,
+        "power_limit_mw": 99.164688,
+        "pv_accounting_max_abs_mw": 2.842170943040401e-14,
+        "soc_capacity_mwh": 396.658752,
+        "soc_max_mwh": 396.658752,
+        "soc_min_mwh": 0.0,
+        "unbooked_pv_mwh": 1.3739009929736312e-14
+      },
+      "battery_multiple_of_design": 7.0,
+      "metrics": {
+        "battery_charged_mwh": 60890.9061989754,
+        "battery_cycles_per_year": 153.7382644001729,
+        "battery_discharged_mwh": 60981.628091618615,
+        "battery_duration_h": 4.0,
+        "battery_mw": 99.164688,
+        "battery_mwh": 396.658752,
+        "energy_served_pct": 99.32593351037231,
+        "hours_with_unmet_load": 73,
+        "load_served_mwh": 89772.6361906639,
+        "soc_end_mwh": 219.58535929049825,
+        "soc_mean_mwh": 326.76019194767383,
+        "soc_min_mwh": 0.0,
+        "soc_start_mwh": 297.494064,
+        "solar_curtailed_mwh": 351085.8469753399,
+        "solar_curtailed_pct": 75.13057964719943,
+        "solar_generation_mwh": 467300.8628763149,
+        "solar_mw_dc": 212.49576,
+        "unmet_load_mwh": 609.2338989730785,
+        "uptime_pct": 99.16666666666667
+      },
+      "solar_multiple_of_design": 15.0
+    },
+    {
+      "audit": {
+        "battery_state_max_abs_mw": 5.684341886080802e-14,
+        "bus_balance_max_abs_mw": 1.7763568394002505e-15,
+        "charge_max_mw": 141.66384,
+        "discharge_max_mw": 15.17166641933499,
+        "power_limit_mw": 141.66384,
+        "pv_accounting_max_abs_mw": 5.684341886080802e-14,
+        "soc_capacity_mwh": 566.65536,
+        "soc_max_mwh": 566.65536,
+        "soc_min_mwh": 0.0,
+        "unbooked_pv_mwh": 1.6112111644872584e-14
+      },
+      "battery_multiple_of_design": 10.0,
+      "metrics": {
+        "battery_charged_mwh": 61034.07258835942,
+        "battery_cycles_per_year": 107.65535098697116,
+        "battery_discharged_mwh": 61003.48166944849,
+        "battery_duration_h": 4.0,
+        "battery_mw": 141.66384,
+        "battery_mwh": 566.65536,
+        "energy_served_pct": 99.92339088466257,
+        "hours_with_unmet_load": 9,
+        "load_served_mwh": 90312.62933853589,
+        "soc_end_mwh": 468.3956268446486,
+        "soc_mean_mwh": 503.79145646594765,
+        "soc_min_mwh": 0.0,
+        "soc_start_mwh": 424.99152,
+        "solar_curtailed_mwh": 537225.5854039629,
+        "solar_curtailed_pct": 82.11680985155742,
+        "solar_generation_mwh": 654221.2080268409,
+        "solar_mw_dc": 297.494064,
+        "unmet_load_mwh": 69.24075110109752,
+        "uptime_pct": 99.8972602739726
+      },
+      "solar_multiple_of_design": 21.0
+    },
+    {
+      "audit": {
+        "battery_state_max_abs_mw": 5.684341886080802e-14,
+        "bus_balance_max_abs_mw": 1.7763568394002505e-15,
+        "charge_max_mw": 198.329376,
+        "discharge_max_mw": 15.17166641933499,
+        "power_limit_mw": 198.329376,
+        "pv_accounting_max_abs_mw": 5.684341886080802e-14,
+        "soc_capacity_mwh": 793.317504,
+        "soc_max_mwh": 793.317504,
+        "soc_min_mwh": 228.98224931322943,
+        "unbooked_pv_mwh": 1.1712852909795402e-14
+      },
+      "battery_multiple_of_design": 14.0,
+      "metrics": {
+        "battery_charged_mwh": 60676.73394315693,
+        "battery_cycles_per_year": 76.35635523815228,
+        "battery_discharged_mwh": 60574.83315206829,
+        "battery_duration_h": 4.0,
+        "battery_mw": 198.329376,
+        "battery_mwh": 793.317504,
+        "energy_served_pct": 100.0,
+        "hours_with_unmet_load": 0,
+        "load_served_mwh": 90381.87008963698,
+        "soc_end_mwh": 709.7021070223443,
+        "soc_mean_mwh": 735.6112763724682,
+        "soc_min_mwh": 228.98224931322943,
+        "soc_start_mwh": 594.988128,
+        "solar_curtailed_mwh": 755202.234694192,
+        "solar_curtailed_pct": 86.57647735525659,
+        "solar_generation_mwh": 872294.9440357878,
+        "solar_mw_dc": 396.658752,
+        "unmet_load_mwh": 0.0,
+        "uptime_pct": 100.0
+      },
+      "solar_multiple_of_design": 28.0
+    }
+  ],
+  "optimized": {
+    "audit": {
+      "battery_state_max_abs_mw": 2.842170943040401e-14,
+      "bus_balance_max_abs_mw": 1.7763568394002505e-15,
+      "charge_max_mw": 122.57964589816876,
+      "discharge_max_mw": 15.17166641933499,
+      "power_limit_mw": 122.57964589816876,
+      "pv_accounting_max_abs_mw": 2.842170943040401e-14,
+      "soc_capacity_mwh": 490.31858359267505,
+      "soc_max_mwh": 490.31858359267505,
+      "soc_min_mwh": 0.0,
+      "unbooked_pv_mwh": 1.6264767310758543e-14
+    },
+    "battery_year_0_stats": {
+      "efc0": 124.90970084425274,
+      "mean_soc": 0.8525321994182584,
+      "mean_soc0_pct": 85.25321994182585,
+      "mean_temperature": 26.995470812894965,
+      "soc_p90": 1.0,
+      "temperature_p90": 27.0,
+      "thermal_parasitic_fraction": 0.008781480725884916,
+      "thermal_parasitic_kwh": 789866.1197371907
+    },
+    "cost": {
+      "capex_npv_usd": 371042231.21642476,
+      "capex_optimizer_objective_musd": 375.4129132096062,
+      "energy_npv_mwh": 937592.6887436644,
+      "lcoe_usd_per_kwh": 0.4389116024939201,
+      "opex_npv_usd": 40478078.28664023
+    },
+    "degradation_uptime_pct": {
+      "year_0": 99.41780821917808,
+      "year_13": 99.14383561643835,
+      "year_14": 99.34931506849315,
+      "year_25": 99.0068493150685
+    },
+    "optimizer": {
+      "function_evaluations": 227,
+      "message": "2 feasible from 83 samples \u2192 Stage-2 attempts: 1 (Optimization terminated successfully.)",
+      "seed": 20260815,
+      "wall_time_s": 3.3
+    },
+    "optimizer_cache_drift": {
+      "cached_battery_mw_implied": 122.7542459283275,
+      "cached_uptime_pct": 99.41780821917808,
+      "note": "Upstream's optimizer caches on a 1 MW-rounded key; its returned sim_year_0 may belong to a sizing up to 0.5 MW from the reported one. Metrics above are re-simulated at the reported sizing.",
+      "uptime_delta_pp": 0.0,
+      "verified_uptime_pct": 99.41780821917808
+    },
+    "sizing": {
+      "battery_duration_h": 4.0,
+      "battery_mw": 122.57964589816876,
+      "battery_mwh": 490.31858359267505,
+      "land_area_acres": 954.7671221121426,
+      "solar_mw_dc": 199.56534201773954
+    },
+    "year_0": {
+      "battery_charged_mwh": 61254.879588960335,
+      "battery_cycles_per_year": 125.09058654011677,
+      "battery_discharged_mwh": 61334.239213127,
+      "battery_duration_h": 4.0,
+      "battery_mw": 122.57964589816876,
+      "battery_mwh": 490.31858359267505,
+      "energy_served_pct": 99.51434685536259,
+      "hours_with_unmet_load": 51,
+      "load_served_mwh": 89942.92769536456,
+      "soc_end_mwh": 301.19250146154445,
+      "soc_mean_mwh": 417.8222156162149,
+      "soc_min_mwh": 0.0,
+      "soc_start_mwh": 367.73893769450626,
+      "solar_curtailed_mwh": 322382.57839913364,
+      "solar_curtailed_pct": 73.45817416963828,
+      "solar_generation_mwh": 438865.493246061,
+      "solar_mw_dc": 199.56534201773954,
+      "unmet_load_mwh": 438.94239427241786,
+      "uptime_pct": 99.41780821917808
+    }
+  },
+  "provenance": {
+    "annual_pue": 1.1306975499205028,
+    "cooling_case": 2,
+    "facility_load_design_mw": 14.16638399347454,
+    "it_load_avg_mw": 9.125,
+    "it_load_max_mw": 10.625,
+    "scenario": {
+      "architecture": "ac_coupled",
+      "location": "dallas",
+      "required_uptime_pct": 99.0,
+      "seed": 20260815,
+      "topology": "mv_coupled",
+      "total_gpus": 10000,
+      "weather_source": "pvgis"
+    },
+    "scenario_key": "7c92fd77561e",
+    "solar_capacity_factor_of_peak": 0.2510395847912915,
+    "upstream_commit": "72972aa",
+    "weather": {
+      "latitude": 32.78,
+      "longitude": -96.8,
+      "notes": "PVGIS TMY via pvlib.iotools.get_pvgis_tmy; source timestamps UTC.",
+      "retrieved_utc": "2026-08-15T23:48:31+00:00",
+      "source": "pvgis",
+      "timezone_name": "America/Chicago",
+      "utc_offset_hours": -6.0
+    },
+    "weather_summary": {
+      "dni_annual_kwh_per_m2": 2139.30227,
+      "ghi_annual_kwh_per_m2": 1735.72825,
+      "relative_humidity_mean_pct": 62.17733447488584,
+      "rows": 8760,
+      "temp_air_max_c": 42.0,
+      "temp_air_mean_c": 20.030820776255705
+    }
+  },
+  "schema_version": 1
+}

@@ -1,0 +1,667 @@
+{
+  "fixed_load": {
+    "metadata": {
+      "controller": {
+        "kind": "baseline",
+        "name": "fixed_load",
+        "parameters": {}
+      },
+      "cyclic_soc": {
+        "converged": true,
+        "final_gap_mwh": 0.0,
+        "history": [
+          {
+            "end_soc_mwh": 288.3793135278301,
+            "gap_mwh": -79.35962416667616,
+            "iteration": 0,
+            "start_soc_mwh": 367.73893769450626
+          },
+          {
+            "end_soc_mwh": 288.3793135278301,
+            "gap_mwh": 0.0,
+            "iteration": 1,
+            "start_soc_mwh": 288.3793135278301
+          }
+        ],
+        "iterations": 2,
+        "seed_soc_pct": 75.0,
+        "tolerance_mwh": 4.90318583592675e-07
+      },
+      "gpu": {
+        "aggregation": "time_shared",
+        "curve": {
+          "caveats": [
+            "Throughput proportional to SM clock is our approximation, not the paper's measurement.",
+            "ViT-L/16 inference is not LLM training; the reference model's load profile is a training workload.",
+            "Single-GPU measurement; cluster-scale effects (interconnect, synchronisation stalls, stragglers) are absent.",
+            "Memory power is 36% of total at the 200 W cap, so the compute-bound assumption is weakest at the low end.",
+            "Domain floor is 0.308 of full power; below that the fleet is modelled as parked rather than extrapolated."
+          ],
+          "derivation": "Power fraction = measured average power draw (memory + GPU, Fig. 9b) normalised to the 700 W cap row. Compute fraction = average SM frequency (Fig. 6b) normalised the same way, using SM clock as a first-order throughput proxy for a compute-bound kernel. Both series read from the figures' printed numeric annotations via the PDF text layer.",
+          "gpu": "NVIDIA H100 (94 GiB HBM2e, 700 W TDP)",
+          "idle_power_fraction": 0.1,
+          "kind": "literature_derived",
+          "min_operating_power_fraction": 0.3075734157650695,
+          "name": "h100_vit_l16_inference_ujeniya2026",
+          "points": [
+            {
+              "compute_fraction": 0.3174200101574403,
+              "power_fraction": 0.3075734157650695
+            },
+            {
+              "compute_fraction": 0.5749111223971559,
+              "power_fraction": 0.4605873261205564
+            },
+            {
+              "compute_fraction": 0.7623158963941087,
+              "power_fraction": 0.6105100463678517
+            },
+            {
+              "compute_fraction": 0.8791264601320468,
+              "power_fraction": 0.7619783616692427
+            },
+            {
+              "compute_fraction": 0.9593702386998476,
+              "power_fraction": 0.9134466769706336
+            },
+            {
+              "compute_fraction": 1.0,
+              "power_fraction": 1.0
+            }
+          ],
+          "precision": "TF32 mixed precision",
+          "source_authors": "Ujeniya, Eitzinger, Hager, Wellein",
+          "source_id": "arXiv:2604.11391v2",
+          "source_title": "Architectural Trade-offs in the Energy-Efficient Era: A Comparative Study of power-capping NVIDIA H100 and H200",
+          "source_url": "https://arxiv.org/abs/2604.11391",
+          "workload": "Vision Transformer ViT-L/16 inference, batch size 256"
+        },
+        "effective_points": [
+          {
+            "compute_fraction": 0.0,
+            "power_fraction": 0.1
+          },
+          {
+            "compute_fraction": 0.5749111223971559,
+            "power_fraction": 0.4605873261205564
+          },
+          {
+            "compute_fraction": 0.7623158963941087,
+            "power_fraction": 0.6105100463678517
+          },
+          {
+            "compute_fraction": 0.8791264601320468,
+            "power_fraction": 0.7619783616692427
+          },
+          {
+            "compute_fraction": 0.9593702386998476,
+            "power_fraction": 0.9134466769706336
+          },
+          {
+            "compute_fraction": 1.0,
+            "power_fraction": 1.0
+          }
+        ],
+        "min_power_fraction": 0.1,
+        "total_gpus": 10000
+      },
+      "initial_soc_mode": "cyclic",
+      "initial_soc_pct": 58.81468155149448,
+      "scenario": {
+        "architecture": "ac_coupled",
+        "location": "dallas",
+        "required_uptime_pct": 99.0,
+        "seed": 20260815,
+        "topology": "mv_coupled",
+        "total_gpus": 10000,
+        "weather_source": "pvgis"
+      },
+      "sizing": {
+        "battery_duration_h": 4.0,
+        "battery_mw": 122.57964589816876,
+        "battery_mwh": 490.31858359267505,
+        "solar_mw_dc": 199.56534201773954
+      }
+    },
+    "metrics": {
+      "battery_charged_mwh": 61334.23921312701,
+      "battery_cycles_per_year": 125.09058654011677,
+      "battery_discharged_mwh": 61334.239213127,
+      "battery_mw": 122.57964589816876,
+      "battery_mwh": 490.31858359267505,
+      "bus_load_requested_mwh": 96666.1651671532,
+      "bus_load_served_mwh": 96196.70289621853,
+      "compute_fraction_of_nameplate": 0.9951430625354267,
+      "compute_units": 8717.453227810338,
+      "compute_units_nameplate": 8760.0,
+      "energy_served_pct": 99.51434685536259,
+      "gpu_energy_delivered_mwh": 79538.8598729001,
+      "hours_parked": 0,
+      "hours_throttled": 0,
+      "hours_with_shortfall": 51,
+      "involuntary_shortfall_mwh": 396.1401270999118,
+      "soc_end_mwh": 288.3793135278301,
+      "soc_mean_mwh": 417.7225631201153,
+      "soc_min_mwh": 0.0,
+      "soc_net_change_mwh": 0.0,
+      "soc_start_mwh": 288.3793135278301,
+      "solar_curtailed_mwh": 322296.3566006654,
+      "solar_curtailed_pct": 73.43852764928178,
+      "solar_generation_mwh": 438865.493246061,
+      "solar_mw_dc": 199.56534201773954,
+      "unserved_bus_energy_mwh": 469.4622709346691,
+      "uptime_pct": 99.41780821917808,
+      "voluntary_throttle_mwh": 0.0,
+      "wall_time_s": 0.09
+    }
+  },
+  "perfect_foresight_annual": {
+    "metadata": {
+      "controller": {
+        "kind": "replay",
+        "name": "schedule",
+        "parameters": {
+          "steps": 8760
+        }
+      },
+      "cyclic_soc": {
+        "converged": true,
+        "final_gap_mwh": 0.0,
+        "history": [
+          {
+            "end_soc_mwh": 288.3793135278301,
+            "gap_mwh": -79.35962416667616,
+            "iteration": 0,
+            "start_soc_mwh": 367.73893769450626
+          },
+          {
+            "end_soc_mwh": 288.3793135278301,
+            "gap_mwh": 0.0,
+            "iteration": 1,
+            "start_soc_mwh": 288.3793135278301
+          }
+        ],
+        "iterations": 2,
+        "seed_soc_pct": 75.0,
+        "tolerance_mwh": 4.90318583592675e-07
+      },
+      "gpu": {
+        "aggregation": "time_shared",
+        "curve": {
+          "caveats": [
+            "Throughput proportional to SM clock is our approximation, not the paper's measurement.",
+            "ViT-L/16 inference is not LLM training; the reference model's load profile is a training workload.",
+            "Single-GPU measurement; cluster-scale effects (interconnect, synchronisation stalls, stragglers) are absent.",
+            "Memory power is 36% of total at the 200 W cap, so the compute-bound assumption is weakest at the low end.",
+            "Domain floor is 0.308 of full power; below that the fleet is modelled as parked rather than extrapolated."
+          ],
+          "derivation": "Power fraction = measured average power draw (memory + GPU, Fig. 9b) normalised to the 700 W cap row. Compute fraction = average SM frequency (Fig. 6b) normalised the same way, using SM clock as a first-order throughput proxy for a compute-bound kernel. Both series read from the figures' printed numeric annotations via the PDF text layer.",
+          "gpu": "NVIDIA H100 (94 GiB HBM2e, 700 W TDP)",
+          "idle_power_fraction": 0.1,
+          "kind": "literature_derived",
+          "min_operating_power_fraction": 0.3075734157650695,
+          "name": "h100_vit_l16_inference_ujeniya2026",
+          "points": [
+            {
+              "compute_fraction": 0.3174200101574403,
+              "power_fraction": 0.3075734157650695
+            },
+            {
+              "compute_fraction": 0.5749111223971559,
+              "power_fraction": 0.4605873261205564
+            },
+            {
+              "compute_fraction": 0.7623158963941087,
+              "power_fraction": 0.6105100463678517
+            },
+            {
+              "compute_fraction": 0.8791264601320468,
+              "power_fraction": 0.7619783616692427
+            },
+            {
+              "compute_fraction": 0.9593702386998476,
+              "power_fraction": 0.9134466769706336
+            },
+            {
+              "compute_fraction": 1.0,
+              "power_fraction": 1.0
+            }
+          ],
+          "precision": "TF32 mixed precision",
+          "source_authors": "Ujeniya, Eitzinger, Hager, Wellein",
+          "source_id": "arXiv:2604.11391v2",
+          "source_title": "Architectural Trade-offs in the Energy-Efficient Era: A Comparative Study of power-capping NVIDIA H100 and H200",
+          "source_url": "https://arxiv.org/abs/2604.11391",
+          "workload": "Vision Transformer ViT-L/16 inference, batch size 256"
+        },
+        "effective_points": [
+          {
+            "compute_fraction": 0.0,
+            "power_fraction": 0.1
+          },
+          {
+            "compute_fraction": 0.5749111223971559,
+            "power_fraction": 0.4605873261205564
+          },
+          {
+            "compute_fraction": 0.7623158963941087,
+            "power_fraction": 0.6105100463678517
+          },
+          {
+            "compute_fraction": 0.8791264601320468,
+            "power_fraction": 0.7619783616692427
+          },
+          {
+            "compute_fraction": 0.9593702386998476,
+            "power_fraction": 0.9134466769706336
+          },
+          {
+            "compute_fraction": 1.0,
+            "power_fraction": 1.0
+          }
+        ],
+        "min_power_fraction": 0.1,
+        "total_gpus": 10000
+      },
+      "initial_soc_mode": "cyclic",
+      "initial_soc_pct": 58.81468155149448,
+      "planner": {
+        "caveat": "Consumes the realised future over the entire year. A ceiling on what any controller could achieve, not a design.",
+        "kind": "upper_bound",
+        "name": "perfect_foresight_annual",
+        "parameters": {
+          "cyclic_soc": true,
+          "horizon_hours": 8760,
+          "initial_soc": "free (chosen by the optimiser)"
+        }
+      },
+      "scenario": {
+        "architecture": "ac_coupled",
+        "location": "dallas",
+        "required_uptime_pct": 99.0,
+        "seed": 20260815,
+        "topology": "mv_coupled",
+        "total_gpus": 10000,
+        "weather_source": "pvgis"
+      },
+      "sizing": {
+        "battery_duration_h": 4.0,
+        "battery_mw": 122.57964589816876,
+        "battery_mwh": 490.31858359267505,
+        "solar_mw_dc": 199.56534201773954
+      }
+    },
+    "metrics": {
+      "battery_charged_mwh": 61370.05109907534,
+      "battery_cycles_per_year": 125.16362453448755,
+      "battery_discharged_mwh": 61370.05109907533,
+      "battery_mw": 122.57964589816876,
+      "battery_mwh": 490.31858359267505,
+      "bus_load_requested_mwh": 96191.98159817696,
+      "bus_load_served_mwh": 96191.98159817696,
+      "compute_fraction_of_nameplate": 0.9974592453829725,
+      "compute_units": 8737.74298955484,
+      "compute_units_nameplate": 8760.0,
+      "energy_served_pct": 99.99999999999999,
+      "gpu_energy_delivered_mwh": 79534.87822169194,
+      "hours_parked": 0,
+      "hours_throttled": 222,
+      "hours_with_shortfall": 0,
+      "involuntary_shortfall_mwh": 1.4654943925052066e-13,
+      "planner_model_gap": 0.0,
+      "planner_predicted_compute_units": 8737.74298955484,
+      "soc_end_mwh": 288.3793135278301,
+      "soc_mean_mwh": 419.6217653864916,
+      "soc_min_mwh": 0.0,
+      "soc_net_change_mwh": 0.0,
+      "soc_start_mwh": 288.3793135278301,
+      "solar_curtailed_mwh": 322296.3566006654,
+      "solar_curtailed_pct": 73.43852764928178,
+      "solar_generation_mwh": 438865.493246061,
+      "solar_mw_dc": 199.56534201773954,
+      "unserved_bus_energy_mwh": 1.7497114868092467e-13,
+      "uptime_pct": 100.0,
+      "voluntary_throttle_mwh": 400.12177830807497,
+      "wall_time_s": 0.51
+    }
+  },
+  "perfect_foresight_mpc": {
+    "metadata": {
+      "controller": {
+        "forecast": {
+          "caveat": "Exact future knowledge. Establishes the theoretical ceiling; not achievable by any real forecasting system.",
+          "kind": "perfect_foresight",
+          "name": "perfect"
+        },
+        "kind": "mpc",
+        "name": "perfect_foresight_mpc",
+        "parameters": {
+          "horizon_hours": 48,
+          "solver": "HIGHS",
+          "solves": 8760,
+          "terminal_value_compute_per_mwh": 0.09030971157765694,
+          "terminal_value_scale": 0.95
+        }
+      },
+      "cyclic_soc": {
+        "converged": true,
+        "final_gap_mwh": 0.0,
+        "history": [
+          {
+            "end_soc_mwh": 430.7914070707626,
+            "gap_mwh": 63.05246937625634,
+            "iteration": 0,
+            "start_soc_mwh": 367.73893769450626
+          },
+          {
+            "end_soc_mwh": 430.7914070707626,
+            "gap_mwh": 0.0,
+            "iteration": 1,
+            "start_soc_mwh": 430.7914070707626
+          }
+        ],
+        "iterations": 2,
+        "seed_soc_pct": 75.0,
+        "tolerance_mwh": 4.90318583592675e-07
+      },
+      "gpu": {
+        "aggregation": "time_shared",
+        "curve": {
+          "caveats": [
+            "Throughput proportional to SM clock is our approximation, not the paper's measurement.",
+            "ViT-L/16 inference is not LLM training; the reference model's load profile is a training workload.",
+            "Single-GPU measurement; cluster-scale effects (interconnect, synchronisation stalls, stragglers) are absent.",
+            "Memory power is 36% of total at the 200 W cap, so the compute-bound assumption is weakest at the low end.",
+            "Domain floor is 0.308 of full power; below that the fleet is modelled as parked rather than extrapolated."
+          ],
+          "derivation": "Power fraction = measured average power draw (memory + GPU, Fig. 9b) normalised to the 700 W cap row. Compute fraction = average SM frequency (Fig. 6b) normalised the same way, using SM clock as a first-order throughput proxy for a compute-bound kernel. Both series read from the figures' printed numeric annotations via the PDF text layer.",
+          "gpu": "NVIDIA H100 (94 GiB HBM2e, 700 W TDP)",
+          "idle_power_fraction": 0.1,
+          "kind": "literature_derived",
+          "min_operating_power_fraction": 0.3075734157650695,
+          "name": "h100_vit_l16_inference_ujeniya2026",
+          "points": [
+            {
+              "compute_fraction": 0.3174200101574403,
+              "power_fraction": 0.3075734157650695
+            },
+            {
+              "compute_fraction": 0.5749111223971559,
+              "power_fraction": 0.4605873261205564
+            },
+            {
+              "compute_fraction": 0.7623158963941087,
+              "power_fraction": 0.6105100463678517
+            },
+            {
+              "compute_fraction": 0.8791264601320468,
+              "power_fraction": 0.7619783616692427
+            },
+            {
+              "compute_fraction": 0.9593702386998476,
+              "power_fraction": 0.9134466769706336
+            },
+            {
+              "compute_fraction": 1.0,
+              "power_fraction": 1.0
+            }
+          ],
+          "precision": "TF32 mixed precision",
+          "source_authors": "Ujeniya, Eitzinger, Hager, Wellein",
+          "source_id": "arXiv:2604.11391v2",
+          "source_title": "Architectural Trade-offs in the Energy-Efficient Era: A Comparative Study of power-capping NVIDIA H100 and H200",
+          "source_url": "https://arxiv.org/abs/2604.11391",
+          "workload": "Vision Transformer ViT-L/16 inference, batch size 256"
+        },
+        "effective_points": [
+          {
+            "compute_fraction": 0.0,
+            "power_fraction": 0.1
+          },
+          {
+            "compute_fraction": 0.5749111223971559,
+            "power_fraction": 0.4605873261205564
+          },
+          {
+            "compute_fraction": 0.7623158963941087,
+            "power_fraction": 0.6105100463678517
+          },
+          {
+            "compute_fraction": 0.8791264601320468,
+            "power_fraction": 0.7619783616692427
+          },
+          {
+            "compute_fraction": 0.9593702386998476,
+            "power_fraction": 0.9134466769706336
+          },
+          {
+            "compute_fraction": 1.0,
+            "power_fraction": 1.0
+          }
+        ],
+        "min_power_fraction": 0.1,
+        "total_gpus": 10000
+      },
+      "initial_soc_mode": "cyclic",
+      "initial_soc_pct": 87.85949003079928,
+      "scenario": {
+        "architecture": "ac_coupled",
+        "location": "dallas",
+        "required_uptime_pct": 99.0,
+        "seed": 20260815,
+        "topology": "mv_coupled",
+        "total_gpus": 10000,
+        "weather_source": "pvgis"
+      },
+      "sizing": {
+        "battery_duration_h": 4.0,
+        "battery_mw": 122.57964589816876,
+        "battery_mwh": 490.31858359267505,
+        "solar_mw_dc": 199.56534201773954
+      }
+    },
+    "metrics": {
+      "battery_charged_mwh": 60889.61507677195,
+      "battery_cycles_per_year": 124.18377992247403,
+      "battery_discharged_mwh": 60889.615076771945,
+      "battery_mw": 122.57964589816876,
+      "battery_mwh": 490.31858359267505,
+      "bus_load_requested_mwh": 95697.61785904272,
+      "bus_load_served_mwh": 95697.61785904272,
+      "compute_fraction_of_nameplate": 0.9942664991481244,
+      "compute_units": 8709.774532537569,
+      "compute_units_nameplate": 8760.0,
+      "energy_served_pct": 100.0,
+      "gpu_energy_delivered_mwh": 79119.36201562549,
+      "hours_parked": 0,
+      "hours_throttled": 333,
+      "hours_with_shortfall": 0,
+      "involuntary_shortfall_mwh": 0.0,
+      "soc_end_mwh": 430.7914070707626,
+      "soc_mean_mwh": 424.58100285168285,
+      "soc_min_mwh": 0.0,
+      "soc_net_change_mwh": 0.0,
+      "soc_start_mwh": 430.7914070707626,
+      "solar_curtailed_mwh": 322919.76643431303,
+      "solar_curtailed_pct": 73.58057796839815,
+      "solar_generation_mwh": 438865.493246061,
+      "solar_mw_dc": 199.56534201773954,
+      "unserved_bus_energy_mwh": 0.0,
+      "uptime_pct": 100.0,
+      "voluntary_throttle_mwh": 815.6379843745144,
+      "wall_time_s": 121.16
+    }
+  },
+  "simple_throttle": {
+    "metadata": {
+      "controller": {
+        "kind": "heuristic",
+        "name": "simple_throttle",
+        "parameters": {
+          "bands": [
+            [
+              0.5,
+              1.0
+            ],
+            [
+              0.3,
+              0.75
+            ],
+            [
+              0.15,
+              0.5
+            ]
+          ],
+          "park_below": 0.15
+        }
+      },
+      "cyclic_soc": {
+        "converged": true,
+        "final_gap_mwh": 0.0,
+        "history": [
+          {
+            "end_soc_mwh": 288.3793135278301,
+            "gap_mwh": -79.35962416667616,
+            "iteration": 0,
+            "start_soc_mwh": 367.73893769450626
+          },
+          {
+            "end_soc_mwh": 288.3793135278301,
+            "gap_mwh": 0.0,
+            "iteration": 1,
+            "start_soc_mwh": 288.3793135278301
+          }
+        ],
+        "iterations": 2,
+        "seed_soc_pct": 75.0,
+        "tolerance_mwh": 4.90318583592675e-07
+      },
+      "gpu": {
+        "aggregation": "time_shared",
+        "curve": {
+          "caveats": [
+            "Throughput proportional to SM clock is our approximation, not the paper's measurement.",
+            "ViT-L/16 inference is not LLM training; the reference model's load profile is a training workload.",
+            "Single-GPU measurement; cluster-scale effects (interconnect, synchronisation stalls, stragglers) are absent.",
+            "Memory power is 36% of total at the 200 W cap, so the compute-bound assumption is weakest at the low end.",
+            "Domain floor is 0.308 of full power; below that the fleet is modelled as parked rather than extrapolated."
+          ],
+          "derivation": "Power fraction = measured average power draw (memory + GPU, Fig. 9b) normalised to the 700 W cap row. Compute fraction = average SM frequency (Fig. 6b) normalised the same way, using SM clock as a first-order throughput proxy for a compute-bound kernel. Both series read from the figures' printed numeric annotations via the PDF text layer.",
+          "gpu": "NVIDIA H100 (94 GiB HBM2e, 700 W TDP)",
+          "idle_power_fraction": 0.1,
+          "kind": "literature_derived",
+          "min_operating_power_fraction": 0.3075734157650695,
+          "name": "h100_vit_l16_inference_ujeniya2026",
+          "points": [
+            {
+              "compute_fraction": 0.3174200101574403,
+              "power_fraction": 0.3075734157650695
+            },
+            {
+              "compute_fraction": 0.5749111223971559,
+              "power_fraction": 0.4605873261205564
+            },
+            {
+              "compute_fraction": 0.7623158963941087,
+              "power_fraction": 0.6105100463678517
+            },
+            {
+              "compute_fraction": 0.8791264601320468,
+              "power_fraction": 0.7619783616692427
+            },
+            {
+              "compute_fraction": 0.9593702386998476,
+              "power_fraction": 0.9134466769706336
+            },
+            {
+              "compute_fraction": 1.0,
+              "power_fraction": 1.0
+            }
+          ],
+          "precision": "TF32 mixed precision",
+          "source_authors": "Ujeniya, Eitzinger, Hager, Wellein",
+          "source_id": "arXiv:2604.11391v2",
+          "source_title": "Architectural Trade-offs in the Energy-Efficient Era: A Comparative Study of power-capping NVIDIA H100 and H200",
+          "source_url": "https://arxiv.org/abs/2604.11391",
+          "workload": "Vision Transformer ViT-L/16 inference, batch size 256"
+        },
+        "effective_points": [
+          {
+            "compute_fraction": 0.0,
+            "power_fraction": 0.1
+          },
+          {
+            "compute_fraction": 0.5749111223971559,
+            "power_fraction": 0.4605873261205564
+          },
+          {
+            "compute_fraction": 0.7623158963941087,
+            "power_fraction": 0.6105100463678517
+          },
+          {
+            "compute_fraction": 0.8791264601320468,
+            "power_fraction": 0.7619783616692427
+          },
+          {
+            "compute_fraction": 0.9593702386998476,
+            "power_fraction": 0.9134466769706336
+          },
+          {
+            "compute_fraction": 1.0,
+            "power_fraction": 1.0
+          }
+        ],
+        "min_power_fraction": 0.1,
+        "total_gpus": 10000
+      },
+      "initial_soc_mode": "cyclic",
+      "initial_soc_pct": 58.81468155149448,
+      "scenario": {
+        "architecture": "ac_coupled",
+        "location": "dallas",
+        "required_uptime_pct": 99.0,
+        "seed": 20260815,
+        "topology": "mv_coupled",
+        "total_gpus": 10000,
+        "weather_source": "pvgis"
+      },
+      "sizing": {
+        "battery_duration_h": 4.0,
+        "battery_mw": 122.57964589816876,
+        "battery_mwh": 490.31858359267505,
+        "solar_mw_dc": 199.56534201773954
+      }
+    },
+    "metrics": {
+      "battery_charged_mwh": 60824.2742726297,
+      "battery_cycles_per_year": 124.050517985585,
+      "battery_discharged_mwh": 60824.2742726297,
+      "battery_mw": 122.57964589816876,
+      "battery_mwh": 490.31858359267505,
+      "bus_load_requested_mwh": 95511.60727373701,
+      "bus_load_served_mwh": 95511.60727373701,
+      "compute_fraction_of_nameplate": 0.9916216400460061,
+      "compute_units": 8686.605566803013,
+      "compute_units_nameplate": 8760.0,
+      "energy_served_pct": 100.0,
+      "gpu_energy_delivered_mwh": 78964.22515585163,
+      "hours_parked": 18,
+      "hours_throttled": 286,
+      "hours_with_shortfall": 0,
+      "involuntary_shortfall_mwh": 0.0,
+      "soc_end_mwh": 288.3793135278301,
+      "soc_mean_mwh": 420.588279192156,
+      "soc_min_mwh": 58.09395154665362,
+      "soc_net_change_mwh": 0.0,
+      "soc_start_mwh": 288.3793135278301,
+      "solar_curtailed_mwh": 323137.3215721679,
+      "solar_curtailed_pct": 73.63015013599914,
+      "solar_generation_mwh": 438865.493246061,
+      "solar_mw_dc": 199.56534201773954,
+      "unserved_bus_energy_mwh": 0.0,
+      "uptime_pct": 100.0,
+      "voluntary_throttle_mwh": 970.7748441483723,
+      "wall_time_s": 0.09
+    }
+  }
+}

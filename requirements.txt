@@ -1,0 +1,18 @@
+# Pinned to the versions these results were produced and verified with.
+#
+# scikit-learn must stay in 1.8.x: upstream's fade_surrogate.pkl was fitted
+# under 1.8.0 and is unpickled at runtime.
+# cvxpy provides the MPC's LP; it solves through HiGHS, which ships with scipy.
+numpy==2.4.6
+pandas==3.0.5
+scipy==1.17.1
+pvlib==0.15.2
+pyarrow==25.0.1
+rainflow==3.2.0
+tzfpy==1.3.3
+reverse_geocoder==1.5.1
+scikit-learn==1.8.0
+requests==2.34.2
+matplotlib==3.11.1
+cvxpy==1.9.2
+pytest==9.1.1

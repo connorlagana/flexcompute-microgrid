@@ -1,0 +1,18 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Cached TMY: regenerated on first run, provenance is recorded in snapshots.
+data/weather/
+
+# Upstream's own git-ignored weather cache.
+upstream/output_tables/nsrdb_cache/
+
+# The vendored reference model is its own clone, created by the Setup step in
+# the README and pinned at 72972aa. Tracking it here would record a stray
+# gitlink rather than files, so it stays out and gets cloned per checkout.
+upstream/
+
+# macOS directory metadata.
+.DS_Store
