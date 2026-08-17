@@ -1,4 +1,4 @@
-# Flexible Compute for Islanded AI Data Centres
+# Flexible Compute for Islanded AI Data Centers
 
 **Research question:** how much can intelligent, forecast-aware GPU load control
 reduce the solar + battery infrastructure required to produce a given amount of
