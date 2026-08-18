@@ -123,7 +123,7 @@ def test_initial_soc_is_hardcoded_at_75_percent():
 def test_uptime_counts_hours_with_unmet_below_one_kilowatt():
     """Uptime is an absolute-threshold hour count, not an energy fraction.
 
-    A throttled-but-online data centre would score full uptime here, which is
+    A throttled-but-online data center would score full uptime here, which is
     precisely why useful compute -- not uptime -- has to be the project's
     headline metric.
     """

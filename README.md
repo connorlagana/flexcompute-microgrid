@@ -2,11 +2,11 @@
 
 **Research question:** how much can intelligent, forecast-aware GPU load control
 reduce the solar + battery infrastructure required to produce a given amount of
-useful compute in an islanded AI data centre?
+useful compute in an islanded AI data center?
 
 The reference work this extends
 ([Newkirk et al.](https://github.com/acnewkirk/AI-Datacenter-Microgrid-Analysis),
-vendored read-only in `upstream/`) treats the data centre as an **exogenous
+vendored read-only in `upstream/`) treats the data center as an **exogenous
 hourly load** and optimises the supply side to meet a required uptime at minimum
 cost. This project makes GPU demand a **control variable** and changes the
 success metric from *uptime* to *useful compute produced*.

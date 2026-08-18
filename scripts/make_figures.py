@@ -94,7 +94,7 @@ def figure_2(*, scale: float, window_hours: int) -> None:
         runs[strategy] = run_strategy(site, strategy, sizing)
         print(f"    {strategy:<26} {time.time() - started:5.1f}s")
 
-    # Centre the drought in the frame with a margin either side, and keep the
+    # Center the drought in the frame with a margin either side, and keep the
     # window inside the year: the trace is positional and cannot wrap.
     margin = window_hours // 4
     start = int(np.clip(drought.start_hour - margin, 0, 8760 - window_hours - 2 * margin))
