@@ -508,6 +508,15 @@ tests/                  project tests
 docs/                   architecture map and roadmap
 ```
 
-## Licence
+## License
 
-MIT, matching the reference project.
+MIT — see [`LICENSE`](LICENSE). Matches the reference project, which is also MIT
+(© 2025 Alex C. Newkirk).
+
+`upstream/` is **not** redistributed here: the setup step clones it from its own
+repository, so this project depends on that work rather than vendoring a copy of
+it. Its license and copyright notice stay with it.
+
+The weather and hardware data this project *reads* carry their own terms and are
+not covered by the above — Open-Meteo (ERA5), NSRDB, and PVGIS each have their
+own attribution and use conditions.
