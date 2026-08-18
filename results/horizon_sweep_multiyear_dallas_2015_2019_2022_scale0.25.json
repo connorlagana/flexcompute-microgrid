@@ -1,0 +1,232 @@
+{
+  "experiment": "horizon_sweep_multiyear",
+  "infrastructure_scale": 0.25,
+  "metric_note": "'retained' is the share of the perfect-foresight advantage, not a percentage of the ceiling. Percent-of-ceiling flatters short horizons because the ceiling sits only a few percent above doing nothing.",
+  "references": {
+    "advantage_window": 892.5660804371955,
+    "fixed_load_median": 6344.541399702171,
+    "perfect_foresight_annual_median": 7237.107480139366
+  },
+  "rows": [
+    {
+      "forecast_mpc": {
+        "advantage_retained_pct": 90.9515397604923,
+        "compute": {
+          "max": 7410.754474569039,
+          "mean": 7173.157467399763,
+          "median": 7156.343993239674,
+          "min": 6952.373934390576,
+          "n": 3,
+          "p10": 6993.167946160396,
+          "p90": 7359.872378303166,
+          "std": 229.65234505350443
+        },
+        "involuntary_shortfall_mwh": {
+          "max": 182.21091350269037,
+          "mean": 115.71344096205677,
+          "median": 116.620312369802,
+          "min": 48.3090970136779,
+          "n": 3,
+          "p10": 61.97134008490272,
+          "p90": 169.0927932761127,
+          "std": 66.95551453447978
+        }
+      },
+      "horizon_hours": 12,
+      "perfect_foresight_mpc": {
+        "advantage_retained_pct": 92.38525757777708,
+        "compute": {
+          "max": 7424.97772052687,
+          "mean": 7187.2022938592345,
+          "median": 7169.140872165943,
+          "min": 6967.488288884891,
+          "n": 3,
+          "p10": 7007.818805541101,
+          "p90": 7373.810350854685,
+          "std": 229.27888309046813
+        },
+        "involuntary_shortfall_mwh": {
+          "max": 195.17600208609707,
+          "mean": 119.41148528119838,
+          "median": 109.30767689444482,
+          "min": 53.75077686305327,
+          "n": 3,
+          "p10": 64.86215686933159,
+          "p90": 178.00233704776662,
+          "std": 71.25193885280835
+        }
+      }
+    },
+    {
+      "forecast_mpc": {
+        "advantage_retained_pct": 97.59977700534039,
+        "compute": {
+          "max": 7476.723213186264,
+          "mean": 7229.626996890834,
+          "median": 7215.6839038341805,
+          "min": 6996.473873652055,
+          "n": 3,
+          "p10": 7040.31587968848,
+          "p90": 7424.5153513158475,
+          "std": 240.42808574239166
+        },
+        "involuntary_shortfall_mwh": {
+          "max": 55.90373222861799,
+          "mean": 23.794604580942693,
+          "median": 14.718836318905312,
+          "min": 0.761245195304785,
+          "n": 3,
+          "p10": 3.5527634200248905,
+          "p90": 47.66675304667545,
+          "std": 28.669681655268384
+        }
+      },
+      "horizon_hours": 24,
+      "perfect_foresight_mpc": {
+        "advantage_retained_pct": 99.09693222597537,
+        "compute": {
+          "max": 7492.2974680794505,
+          "mean": 7244.256742859233,
+          "median": 7229.047003505063,
+          "min": 7011.425756993183,
+          "n": 3,
+          "p10": 7054.950006295559,
+          "p90": 7439.647375164573,
+          "std": 240.7963927453543
+        },
+        "involuntary_shortfall_mwh": {
+          "max": 62.630743175096384,
+          "mean": 22.181816513697196,
+          "median": 3.9147063659949612,
+          "min": 2.469136006766348e-13,
+          "n": 3,
+          "p10": 0.7829412731991898,
+          "p90": 50.8875358132761,
+          "std": 35.08444074696684
+        }
+      }
+    },
+    {
+      "forecast_mpc": {
+        "advantage_retained_pct": 96.95434951324023,
+        "compute": {
+          "max": 7466.735210009478,
+          "mean": 7216.2106025178655,
+          "median": 7209.923036965878,
+          "min": 6971.973560578241,
+          "n": 3,
+          "p10": 7019.563455855769,
+          "p90": 7415.372775400758,
+          "std": 247.4407455279091
+        },
+        "involuntary_shortfall_mwh": {
+          "max": 8.544830216819078,
+          "mean": 3.2725532059261746,
+          "median": 0.9996340635997962,
+          "min": 0.2731953373596512,
+          "n": 3,
+          "p10": 0.4184830826076802,
+          "p90": 7.035790986175222,
+          "std": 4.580350092016734
+        }
+      },
+      "horizon_hours": 48,
+      "perfect_foresight_mpc": {
+        "advantage_retained_pct": 99.91295551012823,
+        "compute": {
+          "max": 7497.928273049668,
+          "mean": 7248.405352922228,
+          "median": 7236.330550547881,
+          "min": 7010.957235169134,
+          "n": 3,
+          "p10": 7056.031898244883,
+          "p90": 7445.60872854931,
+          "std": 243.70996814430003
+        },
+        "involuntary_shortfall_mwh": {
+          "max": 13.868555650712143,
+          "mean": 4.622851883570861,
+          "median": 2.4091839634365897e-13,
+          "min": 1.9972912213006566e-13,
+          "n": 3,
+          "p10": 2.0796697697278433e-13,
+          "p90": 11.094844520569763,
+          "std": 8.007014338209835
+        }
+      }
+    },
+    {
+      "forecast_mpc": {
+        "advantage_retained_pct": 96.7277948594698,
+        "compute": {
+          "max": 7462.011372445391,
+          "mean": 7210.286360647707,
+          "median": 7207.900886972671,
+          "min": 6960.946822525056,
+          "n": 3,
+          "p10": 7010.3376354145785,
+          "p90": 7411.189275350847,
+          "std": 250.5407924075595
+        },
+        "involuntary_shortfall_mwh": {
+          "max": 0.882423304308018,
+          "mean": 0.551076374947157,
+          "median": 0.7242414790378968,
+          "min": 0.04656434149555644,
+          "n": 3,
+          "p10": 0.18209976900402453,
+          "p90": 0.8507869392539937,
+          "std": 0.4440210202057427
+        }
+      },
+      "horizon_hours": 96,
+      "perfect_foresight_mpc": {
+        "advantage_retained_pct": 99.97791837443756,
+        "compute": {
+          "max": 7498.576913455669,
+          "mean": 7248.632685308462,
+          "median": 7236.910387039587,
+          "min": 7010.410755430131,
+          "n": 3,
+          "p10": 7055.710681752022,
+          "p90": 7446.243608172452,
+          "std": 244.29410281028464
+        },
+        "involuntary_shortfall_mwh": {
+          "max": 2.255973186038318e-13,
+          "mean": 2.1579034855297627e-13,
+          "median": 2.2426505097428162e-13,
+          "min": 1.9750867608081535e-13,
+          "n": 3,
+          "p10": 2.028599510595086e-13,
+          "p90": 2.2533086507792176e-13,
+          "std": 1.5846400081523607e-14
+        }
+      }
+    }
+  ],
+  "settings": {
+    "cooling_fixed_fraction": 0.0,
+    "curve": "h100_llama3_8b_pretrain_mayr2026",
+    "curve_kind": "measured",
+    "forecast_target_nrmse_pct": 10.0
+  },
+  "sizing": {
+    "battery_duration_h": 4.0,
+    "battery_mw": 30.64491147454219,
+    "battery_mwh": 122.57964589816876,
+    "solar_mw_dc": 49.891335504434885
+  },
+  "year_set": {
+    "label": "dallas_2015_2019_2022",
+    "location": "dallas",
+    "n_years": 3,
+    "note": "Actual calendar years, simulated independently. Never averaged, never stitched into a composite, never mixed across sources.",
+    "source": "open_meteo_era5",
+    "years": [
+      2015,
+      2019,
+      2022
+    ]
+  }
+}

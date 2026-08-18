@@ -420,3 +420,124 @@ def test_perfect_foresight_is_an_upper_bound_on_the_heuristics(site):
     ceiling = run_strategy(site, "perfect_foresight_annual", sizing).metrics["compute_units"]
     for strategy in ("fixed_load", "simple_throttle"):
         assert run_strategy(site, strategy, sizing).metrics["compute_units"] <= ceiling + 1e-6
+
+
+# ---------------------------------------------------------------------------
+# The compiled window LP is a speed optimisation and nothing else
+# ---------------------------------------------------------------------------
+#
+# ForecastMPCController re-solves a parametrised, pre-canonicalised LP instead
+# of rebuilding the problem every hour. That is worth ~2.7x on a simulated
+# year, which is what makes the multi-year sizing search affordable -- but a
+# performance path that quietly changes the answer would invalidate every MPC
+# number in the project. These tests are the gate on it.
+
+def test_compiled_window_lp_is_dpp_compliant():
+    """If it is not DPP, cvxpy re-canonicalises every solve and caches nothing.
+
+    The speedup would silently vanish while the tests still passed, so the
+    property is asserted rather than assumed. ``_CompiledWindowLP`` also raises
+    on construction if this fails; this pins it at the level of the real model.
+    """
+    from flexcompute.mpc import _CompiledWindowLP
+
+    model = _plant(n=48)
+    compiled = _CompiledWindowLP(model, solver="HIGHS")
+    assert compiled.problem.is_dcp(dpp=True)
+
+
+def test_compiled_and_reference_paths_agree_on_a_synthetic_window():
+    """Same window, both formulations, same optimum."""
+    from flexcompute.mpc import _CompiledWindowLP
+
+    solar = np.concatenate([np.full(8, 30.0), np.zeros(16), np.full(6, 12.0), np.zeros(18)])
+    model = _plant(n=48, solar=solar)
+
+    reference = solve_schedule(
+        model, initial_soc_mwh=8.0, terminal_value_per_mwh=0.25
+    )
+    fast = _CompiledWindowLP(model, solver="HIGHS").solve(
+        model, initial_soc_mwh=8.0, terminal_value_per_mwh=0.25
+    )
+
+    np.testing.assert_allclose(fast.it_power_mw, reference.it_power_mw, rtol=1e-8, atol=1e-8)
+    np.testing.assert_allclose(fast.soc_mwh, reference.soc_mwh, rtol=1e-8, atol=1e-8)
+    assert fast.compute_units.sum() == pytest.approx(reference.compute_units.sum(), rel=1e-9)
+
+
+def test_compiled_path_prices_shortfall_the_same_way():
+    """The unserved penalty is recomputed per window; check it transfers.
+
+    Priced off the window's own mean bus load in both paths. A mismatch would
+    only show up in energy-starved windows, so this uses one.
+    """
+    from flexcompute.mpc import _CompiledWindowLP
+
+    model = _plant(n=24, solar=np.zeros(24), battery_mw=1.0, battery_mwh=2.0)
+    reference = solve_schedule(model, initial_soc_mwh=0.5, terminal_value_per_mwh=0.0)
+    fast = _CompiledWindowLP(model, solver="HIGHS").solve(
+        model, initial_soc_mwh=0.5, terminal_value_per_mwh=0.0
+    )
+    np.testing.assert_allclose(
+        fast.unserved_bus_mwh, reference.unserved_bus_mwh, rtol=1e-8, atol=1e-8
+    )
+
+
+@requires_weather
+@requires_snapshot
+def test_compiled_mpc_reproduces_the_reference_path_over_a_full_year(site):
+    """The one that matters: a whole simulated year, both paths, same answer.
+
+    Not asserted bit-identical -- HiGHS canonicalises the two formulations in a
+    different order, so the last couple of ulps differ. Asserted instead at a
+    tolerance thousands of times tighter than anything that could change a
+    conclusion: hourly actions to 1e-9 relative, annual compute to 1e-12.
+    """
+    from flexcompute.dispatch import simulate
+    from flexcompute.experiments import Sizing
+    from flexcompute.mpc import PerfectForesightMPCController
+
+    s = load_snapshot(SNAPSHOT_PATH)["optimized"]["sizing"]
+    sizing = Sizing(s["solar_mw_dc"], s["battery_mw"], s["battery_duration_h"]).scaled(0.4)
+    kwargs = dict(
+        solar_mw=sizing.solar_mw,
+        battery_mw=sizing.battery_mw,
+        battery_duration_h=sizing.duration_h,
+    )
+
+    def run(compiled: bool):
+        model, fleet = build_plant_model(site, **kwargs)
+        controller = PerfectForesightMPCController(
+            model=model,
+            fleet=fleet,
+            forecast=PerfectSolarForecast(model.solar_dc_mw),
+            horizon_hours=48,
+            compile_window=compiled,
+        )
+        return simulate(site, controller, **kwargs)
+
+    reference, fast = run(False), run(True)
+
+    np.testing.assert_allclose(
+        fast.series("controller_target_it_mw"),
+        reference.series("controller_target_it_mw"),
+        rtol=1e-9,
+        atol=1e-9,
+    )
+    for key in ("compute_units", "involuntary_shortfall_mwh", "voluntary_throttle_mwh"):
+        assert fast.metrics[key] == pytest.approx(reference.metrics[key], rel=1e-12, abs=1e-9)
+
+
+def test_compiled_path_can_be_switched_off_and_is_recorded():
+    """A result must say which path produced it."""
+    from flexcompute.mpc import ForecastMPCController
+
+    from flexcompute.gpu import GpuFleet
+
+    model = _plant(n=48)
+    fleet = GpuFleet(curve=get_curve(), total_gpus=10)
+    controller = ForecastMPCController(
+        model=model, fleet=fleet,
+        forecast=PerfectSolarForecast(model.solar_dc_mw), compile_window=False,
+    )
+    assert controller.metadata()["parameters"]["compiled_window_lp"] is False

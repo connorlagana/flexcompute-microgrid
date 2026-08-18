@@ -33,7 +33,8 @@ from .upstream_bridge import (
     upstream_commit,
     upstream_workdir,
 )
-from .weather import TMY, get_tmy
+from .pv_model import upstream_normalisation_divisor
+from .weather import WeatherYear, get_tmy, get_weather_year
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +59,15 @@ class Scenario:
     required_uptime_pct: float = 99.0
     architecture: str = "ac_coupled"   # ac_coupled | dc_coupled
     topology: str = "mv_coupled"       # mv_coupled | lv_direct
-    weather_source: str = "pvgis"      # pvgis | nsrdb
+    weather_source: str = "pvgis"      # pvgis | nsrdb (typical year)
     seed: int = 20260815
+    #: ``None`` selects the typical meteorological year from ``weather_source``.
+    #: An integer selects that **actual calendar year** from
+    #: ``historical_weather_source`` instead, and ``weather_source`` is then
+    #: ignored. Keeping them as separate fields means a result can never be
+    #: ambiguous about whether it ran on real weather or on a composite.
+    weather_year: Optional[int] = None
+    historical_weather_source: str = "open_meteo_era5"
 
     @property
     def latitude(self) -> float:
@@ -69,16 +77,38 @@ class Scenario:
     def longitude(self) -> float:
         return LOCATIONS[self.location][1]
 
+    @property
+    def uses_historical_weather(self) -> bool:
+        return self.weather_year is not None
+
+    @property
+    def effective_weather_source(self) -> str:
+        """The source that will actually be read."""
+        return (
+            self.historical_weather_source if self.uses_historical_weather
+            else self.weather_source
+        )
+
     def key(self) -> str:
         """Short stable digest, used to name snapshot files."""
         blob = json.dumps(asdict(self), sort_keys=True)
         return hashlib.sha256(blob.encode()).hexdigest()[:12]
 
     def label(self) -> str:
-        return (
+        """Filename-safe identity.
+
+        Deliberately unchanged for a typical-year scenario, so every snapshot
+        and results file committed before historical years existed still
+        resolves to the same name. A historical year appends its source and
+        year, which cannot collide with the typical-year form.
+        """
+        base = (
             f"{self.location}_{self.total_gpus // 1000}kgpu_"
-            f"{self.architecture}_{self.topology}_{self.weather_source}"
+            f"{self.architecture}_{self.topology}_"
         )
+        if self.uses_historical_weather:
+            return f"{base}{self.historical_weather_source}_{self.weather_year}"
+        return f"{base}{self.weather_source}"
 
     def build(self, *, refresh_weather: bool = False) -> "Site":
         return build_site(self, refresh_weather=refresh_weather)
@@ -105,7 +135,7 @@ class Site:
 
     scenario: Scenario
     config: object                      # upstream Config
-    tmy: TMY
+    tmy: WeatherYear                    # typical *or* actual, see WeatherYear.year
     facility_load: object               # upstream FacilityLoad
     solar_profile: pd.DataFrame
     hourly_pue: np.ndarray
@@ -130,6 +160,11 @@ class Site:
     def solar_p_dc(self) -> np.ndarray:
         """Normalised solar DC output, 0..1 of annual peak, 8760 values."""
         return np.asarray(self.solar_profile["p_dc"].to_numpy(), dtype=float)
+
+    @property
+    def weather_year(self) -> Optional[int]:
+        """The actual calendar year simulated, or ``None`` for a typical year."""
+        return self.tmy.year
 
     def provenance(self) -> dict:
         return {
@@ -161,12 +196,21 @@ def build_site(scenario: Scenario, *, refresh_weather: bool = False) -> Site:
     from datacenter_analyzer import DatacenterAnalyzer  # type: ignore[import-not-found]
     from pvstoragesim import get_solar_generation       # type: ignore[import-not-found]
 
-    tmy = get_tmy(
-        scenario.latitude,
-        scenario.longitude,
-        scenario.weather_source,
-        refresh=refresh_weather,
-    )
+    if scenario.uses_historical_weather:
+        tmy = get_weather_year(
+            scenario.latitude,
+            scenario.longitude,
+            scenario.weather_year,
+            scenario.historical_weather_source,
+            refresh=refresh_weather,
+        )
+    else:
+        tmy = get_tmy(
+            scenario.latitude,
+            scenario.longitude,
+            scenario.weather_source,
+            refresh=refresh_weather,
+        )
     cfg = load_upstream_config()
 
     analyzer = DatacenterAnalyzer(
@@ -188,6 +232,17 @@ def build_site(scenario: Scenario, *, refresh_weather: bool = False) -> Site:
 
     solar_profile = get_solar_generation(
         scenario.latitude, scenario.longitude, facility_load=facility_load
+    )
+
+    # Undo upstream's per-year renormalisation so that a given solar MW rating
+    # describes the same physical array in every weather year (see pv_model).
+    # For the PVGIS TMY this divisor is exactly 1.0 and the line is a no-op,
+    # which is what keeps the committed baseline bit-identical.
+    solar_peak_divisor = upstream_normalisation_divisor(
+        tmy.data, scenario.latitude, scenario.longitude
+    )
+    solar_profile = solar_profile.assign(
+        p_dc=solar_profile["p_dc"].to_numpy(dtype=float) * solar_peak_divisor
     )
 
     _validate_site_arrays(facility_load, solar_profile, analyzer.hourly_pue)

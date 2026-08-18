@@ -1,0 +1,773 @@
+{
+  "caveat": "The forecast error model is synthetic and not a validated forecasting system (ASSUMPTIONS B13). Read the shape of the response, not the value at one point.",
+  "experiment": "forecast_error_sweep_multiyear",
+  "infrastructure_scale": 0.25,
+  "nrmse_is": "Realised day-ahead nRMSE, an error magnitude normalised by plant capacity, scored over daylight hours. NOT a fraction of hours forecast wrongly.",
+  "per_year": {
+    "2010": {
+      "fixed_load": 6556.870090204344,
+      "forecast_mpc": {
+        "10.0": {
+          "compute_units": 7476.082774583431,
+          "involuntary_shortfall_mwh": 4.657891155947741,
+          "realised_nrmse_24h_pct": 10.0030568352495,
+          "sigma_24h": 0.153125,
+          "target_nrmse_pct": 10.0,
+          "voluntary_throttle_mwh": 21092.95888421338
+        },
+        "15.0": {
+          "compute_units": 7447.893252648937,
+          "involuntary_shortfall_mwh": 13.033718868065447,
+          "realised_nrmse_24h_pct": 15.01999526299199,
+          "sigma_24h": 0.24140625,
+          "target_nrmse_pct": 15.0,
+          "voluntary_throttle_mwh": 21293.1592269993
+        },
+        "20.0": {
+          "compute_units": 7403.8123404701255,
+          "involuntary_shortfall_mwh": 21.76739389912239,
+          "realised_nrmse_24h_pct": 20.002276142586926,
+          "sigma_24h": 0.33671875,
+          "target_nrmse_pct": 20.0,
+          "voluntary_throttle_mwh": 21591.424847981438
+        },
+        "5.0": {
+          "compute_units": 7495.584504350173,
+          "involuntary_shortfall_mwh": 0.20932770603414552,
+          "realised_nrmse_24h_pct": 5.012033299695662,
+          "sigma_24h": 0.07265625,
+          "target_nrmse_pct": 5.0,
+          "voluntary_throttle_mwh": 21036.66073394345
+        }
+      },
+      "perfect_foresight_annual": 7505.21576878822
+    },
+    "2011": {
+      "fixed_load": 6636.781092355064,
+      "forecast_mpc": {
+        "10.0": {
+          "compute_units": 7481.370629691032,
+          "involuntary_shortfall_mwh": 1.3052687148259703,
+          "realised_nrmse_24h_pct": 10.017824437466976,
+          "sigma_24h": 0.15390625000000002,
+          "target_nrmse_pct": 10.0,
+          "voluntary_throttle_mwh": 20258.71169569309
+        },
+        "15.0": {
+          "compute_units": 7453.796202820256,
+          "involuntary_shortfall_mwh": 5.181598937797778,
+          "realised_nrmse_24h_pct": 14.99950803000338,
+          "sigma_24h": 0.24062499999999998,
+          "target_nrmse_pct": 15.0,
+          "voluntary_throttle_mwh": 20424.46082770266
+        },
+        "20.0": {
+          "compute_units": 7404.148717186461,
+          "involuntary_shortfall_mwh": 14.886707912508488,
+          "realised_nrmse_24h_pct": 19.99240362966051,
+          "sigma_24h": 0.33359375,
+          "target_nrmse_pct": 20.0,
+          "voluntary_throttle_mwh": 20771.26575741104
+        },
+        "5.0": {
+          "compute_units": 7497.90371205484,
+          "involuntary_shortfall_mwh": 1.4344164807746638,
+          "realised_nrmse_24h_pct": 4.99947708748777,
+          "sigma_24h": 0.07187500000000001,
+          "target_nrmse_pct": 5.0,
+          "voluntary_throttle_mwh": 20219.159552666933
+        }
+      },
+      "perfect_foresight_annual": 7504.663971073682
+    },
+    "2012": {
+      "fixed_load": 6657.706659149068,
+      "forecast_mpc": {
+        "10.0": {
+          "compute_units": 7599.6131666919955,
+          "involuntary_shortfall_mwh": 7.378991646381998,
+          "realised_nrmse_24h_pct": 9.980403724174582,
+          "sigma_24h": 0.14375000000000002,
+          "target_nrmse_pct": 10.0,
+          "voluntary_throttle_mwh": 20084.148810200062
+        },
+        "15.0": {
+          "compute_units": 7559.459515115379,
+          "involuntary_shortfall_mwh": 9.077479071794336,
+          "realised_nrmse_24h_pct": 14.983844879747751,
+          "sigma_24h": 0.22578125,
+          "target_nrmse_pct": 15.0,
+          "voluntary_throttle_mwh": 20211.18430382652
+        },
+        "20.0": {
+          "compute_units": 7506.112945648112,
+          "involuntary_shortfall_mwh": 10.028251098001888,
+          "realised_nrmse_24h_pct": 20.007893775791626,
+          "sigma_24h": 0.3140625,
+          "target_nrmse_pct": 20.0,
+          "voluntary_throttle_mwh": 20475.380056065234
+        },
+        "5.0": {
+          "compute_units": 7624.883877059308,
+          "involuntary_shortfall_mwh": 7.369086179277368,
+          "realised_nrmse_24h_pct": 4.985365665258326,
+          "sigma_24h": 0.06796875000000001,
+          "target_nrmse_pct": 5.0,
+          "voluntary_throttle_mwh": 20047.975706878846
+        }
+      },
+      "perfect_foresight_annual": 7633.994387825012
+    },
+    "2013": {
+      "fixed_load": 6389.512795611043,
+      "forecast_mpc": {
+        "10.0": {
+          "compute_units": 7229.127092191136,
+          "involuntary_shortfall_mwh": 3.949557314660069,
+          "realised_nrmse_24h_pct": 10.019773488422652,
+          "sigma_24h": 0.153125,
+          "target_nrmse_pct": 10.0,
+          "voluntary_throttle_mwh": 22593.14986678244
+        },
+        "15.0": {
+          "compute_units": 7199.381610381885,
+          "involuntary_shortfall_mwh": 16.815220481718878,
+          "realised_nrmse_24h_pct": 14.995875214013507,
+          "sigma_24h": 0.23828125,
+          "target_nrmse_pct": 15.0,
+          "voluntary_throttle_mwh": 22710.377740670294
+        },
+        "20.0": {
+          "compute_units": 7148.082959354957,
+          "involuntary_shortfall_mwh": 18.710346853753904,
+          "realised_nrmse_24h_pct": 20.004375633939386,
+          "sigma_24h": 0.3296875,
+          "target_nrmse_pct": 20.0,
+          "voluntary_throttle_mwh": 22997.248017782847
+        },
+        "5.0": {
+          "compute_units": 7251.033886539841,
+          "involuntary_shortfall_mwh": 0.012248683636496671,
+          "realised_nrmse_24h_pct": 4.994862679061139,
+          "sigma_24h": 0.072265625,
+          "target_nrmse_pct": 5.0,
+          "voluntary_throttle_mwh": 22572.759330890607
+        }
+      },
+      "perfect_foresight_annual": 7261.196828565572
+    },
+    "2014": {
+      "fixed_load": 6455.0459910303225,
+      "forecast_mpc": {
+        "10.0": {
+          "compute_units": 7284.062973624848,
+          "involuntary_shortfall_mwh": 8.082665344193668,
+          "realised_nrmse_24h_pct": 10.016901742831378,
+          "sigma_24h": 0.15781250000000002,
+          "target_nrmse_pct": 10.0,
+          "voluntary_throttle_mwh": 22055.588766931338
+        },
+        "15.0": {
+          "compute_units": 7241.239957796625,
+          "involuntary_shortfall_mwh": 14.338099934299647,
+          "realised_nrmse_24h_pct": 15.005556456892197,
+          "sigma_24h": 0.24921875,
+          "target_nrmse_pct": 15.0,
+          "voluntary_throttle_mwh": 22296.34597944854
+        },
+        "20.0": {
+          "compute_units": 7176.498101465053,
+          "involuntary_shortfall_mwh": 16.093820618905408,
+          "realised_nrmse_24h_pct": 19.993551367474392,
+          "sigma_24h": 0.35234375,
+          "target_nrmse_pct": 20.0,
+          "voluntary_throttle_mwh": 22724.992180515652
+        },
+        "5.0": {
+          "compute_units": 7312.497720007947,
+          "involuntary_shortfall_mwh": 7.547291425895492,
+          "realised_nrmse_24h_pct": 5.002396793388191,
+          "sigma_24h": 0.074609375,
+          "target_nrmse_pct": 5.0,
+          "voluntary_throttle_mwh": 21974.734344775385
+        }
+      },
+      "perfect_foresight_annual": 7324.295128671436
+    },
+    "2015": {
+      "fixed_load": 6139.683698019443,
+      "forecast_mpc": {
+        "10.0": {
+          "compute_units": 6971.973560578241,
+          "involuntary_shortfall_mwh": 8.544830216819078,
+          "realised_nrmse_24h_pct": 9.995621940433741,
+          "sigma_24h": 0.16015625000000006,
+          "target_nrmse_pct": 10.0,
+          "voluntary_throttle_mwh": 24974.699384764284
+        },
+        "15.0": {
+          "compute_units": 6931.905058024498,
+          "involuntary_shortfall_mwh": 18.24978236517514,
+          "realised_nrmse_24h_pct": 15.00704827279417,
+          "sigma_24h": 0.25390625,
+          "target_nrmse_pct": 15.0,
+          "voluntary_throttle_mwh": 25151.976857949674
+        },
+        "20.0": {
+          "compute_units": 6875.195032616743,
+          "involuntary_shortfall_mwh": 23.25679329318443,
+          "realised_nrmse_24h_pct": 20.014121975119075,
+          "sigma_24h": 0.35625000000000007,
+          "target_nrmse_pct": 20.0,
+          "voluntary_throttle_mwh": 25462.224004189375
+        },
+        "5.0": {
+          "compute_units": 7000.191402068229,
+          "involuntary_shortfall_mwh": 9.883418291330285,
+          "realised_nrmse_24h_pct": 5.000533941696776,
+          "sigma_24h": 0.07500000000000001,
+          "target_nrmse_pct": 5.0,
+          "voluntary_throttle_mwh": 24910.165428499884
+        }
+      },
+      "perfect_foresight_annual": 7011.039800844055
+    },
+    "2016": {
+      "fixed_load": 6420.070197974947,
+      "forecast_mpc": {
+        "10.0": {
+          "compute_units": 7315.527194387034,
+          "involuntary_shortfall_mwh": 0.29967843596700416,
+          "realised_nrmse_24h_pct": 9.993527013538749,
+          "sigma_24h": 0.14843750000000003,
+          "target_nrmse_pct": 10.0,
+          "voluntary_throttle_mwh": 22452.083028009
+        },
+        "15.0": {
+          "compute_units": 7282.114256488489,
+          "involuntary_shortfall_mwh": 0.5745055287315523,
+          "realised_nrmse_24h_pct": 15.01774460779179,
+          "sigma_24h": 0.23203125000000002,
+          "target_nrmse_pct": 15.0,
+          "voluntary_throttle_mwh": 22593.465486345827
+        },
+        "20.0": {
+          "compute_units": 7230.207491409591,
+          "involuntary_shortfall_mwh": 1.1254992314980554,
+          "realised_nrmse_24h_pct": 20.004792228035974,
+          "sigma_24h": 0.32109375000000007,
+          "target_nrmse_pct": 20.0,
+          "voluntary_throttle_mwh": 22905.691189707373
+        },
+        "5.0": {
+          "compute_units": 7334.797441589025,
+          "involuntary_shortfall_mwh": 0.15941019167642512,
+          "realised_nrmse_24h_pct": 5.005701661412623,
+          "sigma_24h": 0.070703125,
+          "target_nrmse_pct": 5.0,
+          "voluntary_throttle_mwh": 22407.723970838408
+        }
+      },
+      "perfect_foresight_annual": 7343.0906506794145
+    },
+    "2017": {
+      "fixed_load": 6412.0537379225225,
+      "forecast_mpc": {
+        "10.0": {
+          "compute_units": 7310.993465988326,
+          "involuntary_shortfall_mwh": 10.582028088426314,
+          "realised_nrmse_24h_pct": 9.995139532024357,
+          "sigma_24h": 0.153125,
+          "target_nrmse_pct": 10.0,
+          "voluntary_throttle_mwh": 22560.766809350287
+        },
+        "15.0": {
+          "compute_units": 7274.535362227363,
+          "involuntary_shortfall_mwh": 23.08883538195884,
+          "realised_nrmse_24h_pct": 14.988049171244779,
+          "sigma_24h": 0.23828125,
+          "target_nrmse_pct": 15.0,
+          "voluntary_throttle_mwh": 22722.181695122912
+        },
+        "20.0": {
+          "compute_units": 7217.721566050076,
+          "involuntary_shortfall_mwh": 40.64853899684675,
+          "realised_nrmse_24h_pct": 20.00650228092487,
+          "sigma_24h": 0.33281250000000007,
+          "target_nrmse_pct": 20.0,
+          "voluntary_throttle_mwh": 23060.06667245197
+        },
+        "5.0": {
+          "compute_units": 7336.508704759782,
+          "involuntary_shortfall_mwh": 8.280996603583256,
+          "realised_nrmse_24h_pct": 4.980859575301316,
+          "sigma_24h": 0.07343750000000002,
+          "target_nrmse_pct": 5.0,
+          "voluntary_throttle_mwh": 22478.319092361733
+        }
+      },
+      "perfect_foresight_annual": 7344.250746403225
+    },
+    "2018": {
+      "fixed_load": 6200.555772271724,
+      "forecast_mpc": {
+        "10.0": {
+          "compute_units": 7013.332800158227,
+          "involuntary_shortfall_mwh": 4.2186126475896675,
+          "realised_nrmse_24h_pct": 9.98077786017737,
+          "sigma_24h": 0.15625000000000003,
+          "target_nrmse_pct": 10.0,
+          "voluntary_throttle_mwh": 24375.429940058602
+        },
+        "15.0": {
+          "compute_units": 6969.885609013567,
+          "involuntary_shortfall_mwh": 7.043523855146207,
+          "realised_nrmse_24h_pct": 15.01372507069552,
+          "sigma_24h": 0.24375,
+          "target_nrmse_pct": 15.0,
+          "voluntary_throttle_mwh": 24595.990026819327
+        },
+        "20.0": {
+          "compute_units": 6914.8693045101245,
+          "involuntary_shortfall_mwh": 16.319721714463757,
+          "realised_nrmse_24h_pct": 19.999695023615377,
+          "sigma_24h": 0.33515625000000004,
+          "target_nrmse_pct": 20.0,
+          "voluntary_throttle_mwh": 24901.014211538662
+        },
+        "5.0": {
+          "compute_units": 7039.034321031302,
+          "involuntary_shortfall_mwh": 1.412924866429376,
+          "realised_nrmse_24h_pct": 5.0010885391221125,
+          "sigma_24h": 0.07421875000000001,
+          "target_nrmse_pct": 5.0,
+          "voluntary_throttle_mwh": 24287.248929628753
+        }
+      },
+      "perfect_foresight_annual": 7050.039845420211
+    },
+    "2019": {
+      "fixed_load": 6344.541399702171,
+      "forecast_mpc": {
+        "10.0": {
+          "compute_units": 7209.923036965878,
+          "involuntary_shortfall_mwh": 0.9996340635997962,
+          "realised_nrmse_24h_pct": 10.019684610132026,
+          "sigma_24h": 0.14687500000000003,
+          "target_nrmse_pct": 10.0,
+          "voluntary_throttle_mwh": 23044.428493582862
+        },
+        "15.0": {
+          "compute_units": 7181.100943857675,
+          "involuntary_shortfall_mwh": 4.5970496803036545,
+          "realised_nrmse_24h_pct": 15.002246554486662,
+          "sigma_24h": 0.229296875,
+          "target_nrmse_pct": 15.0,
+          "voluntary_throttle_mwh": 23219.13658011773
+        },
+        "20.0": {
+          "compute_units": 7135.004606480259,
+          "involuntary_shortfall_mwh": 9.920099501725817,
+          "realised_nrmse_24h_pct": 19.984337810355797,
+          "sigma_24h": 0.3179687500000001,
+          "target_nrmse_pct": 20.0,
+          "voluntary_throttle_mwh": 23550.822640848564
+        },
+        "5.0": {
+          "compute_units": 7227.517256003355,
+          "involuntary_shortfall_mwh": 0.019039101385463053,
+          "realised_nrmse_24h_pct": 4.999630143553805,
+          "sigma_24h": 0.06953125,
+          "target_nrmse_pct": 5.0,
+          "voluntary_throttle_mwh": 22970.766467754725
+        }
+      },
+      "perfect_foresight_annual": 7237.107480139366
+    },
+    "2020": {
+      "fixed_load": 6159.1525637419145,
+      "forecast_mpc": {
+        "10.0": {
+          "compute_units": 7012.3762271121495,
+          "involuntary_shortfall_mwh": 11.480625540036876,
+          "realised_nrmse_24h_pct": 9.999469514652766,
+          "sigma_24h": 0.15156250000000002,
+          "target_nrmse_pct": 10.0,
+          "voluntary_throttle_mwh": 24703.983735394533
+        },
+        "15.0": {
+          "compute_units": 6974.8204866051765,
+          "involuntary_shortfall_mwh": 13.373460724411244,
+          "realised_nrmse_24h_pct": 15.019440572746687,
+          "sigma_24h": 0.23984374999999997,
+          "target_nrmse_pct": 15.0,
+          "voluntary_throttle_mwh": 24867.95206942189
+        },
+        "20.0": {
+          "compute_units": 6924.474321473267,
+          "involuntary_shortfall_mwh": 18.193462610921678,
+          "realised_nrmse_24h_pct": 20.004353940683014,
+          "sigma_24h": 0.33671875,
+          "target_nrmse_pct": 20.0,
+          "voluntary_throttle_mwh": 25135.252951100192
+        },
+        "5.0": {
+          "compute_units": 7029.810398943193,
+          "involuntary_shortfall_mwh": 10.619620678512417,
+          "realised_nrmse_24h_pct": 4.996180489461657,
+          "sigma_24h": 0.07109375000000001,
+          "target_nrmse_pct": 5.0,
+          "voluntary_throttle_mwh": 24635.54855063606
+        }
+      },
+      "perfect_foresight_annual": 7034.197094860866
+    },
+    "2021": {
+      "fixed_load": 6363.651954763229,
+      "forecast_mpc": {
+        "10.0": {
+          "compute_units": 7282.527309475764,
+          "involuntary_shortfall_mwh": 12.548905171610818,
+          "realised_nrmse_24h_pct": 10.01986170727053,
+          "sigma_24h": 0.15625000000000003,
+          "target_nrmse_pct": 10.0,
+          "voluntary_throttle_mwh": 23006.995801855293
+        },
+        "15.0": {
+          "compute_units": 7237.697868340405,
+          "involuntary_shortfall_mwh": 15.292163102618185,
+          "realised_nrmse_24h_pct": 14.986092795479014,
+          "sigma_24h": 0.24765625000000002,
+          "target_nrmse_pct": 15.0,
+          "voluntary_throttle_mwh": 23206.742367255247
+        },
+        "20.0": {
+          "compute_units": 7171.0169937475,
+          "involuntary_shortfall_mwh": 18.79112094474367,
+          "realised_nrmse_24h_pct": 19.991964765159555,
+          "sigma_24h": 0.35078125000000004,
+          "target_nrmse_pct": 20.0,
+          "voluntary_throttle_mwh": 23563.7324813586
+        },
+        "5.0": {
+          "compute_units": 7306.619869152744,
+          "involuntary_shortfall_mwh": 11.125654005970727,
+          "realised_nrmse_24h_pct": 4.988350720274344,
+          "sigma_24h": 0.07265625,
+          "target_nrmse_pct": 5.0,
+          "voluntary_throttle_mwh": 22941.958950304546
+        }
+      },
+      "perfect_foresight_annual": 7316.10050429639
+    },
+    "2022": {
+      "fixed_load": 6581.13581179192,
+      "forecast_mpc": {
+        "10.0": {
+          "compute_units": 7466.735210009478,
+          "involuntary_shortfall_mwh": 0.2731953373596512,
+          "realised_nrmse_24h_pct": 9.99803558580166,
+          "sigma_24h": 0.15781250000000002,
+          "target_nrmse_pct": 10.0,
+          "voluntary_throttle_mwh": 20811.769147092968
+        },
+        "15.0": {
+          "compute_units": 7430.455971737811,
+          "involuntary_shortfall_mwh": 0.423332230584174,
+          "realised_nrmse_24h_pct": 15.015951854169142,
+          "sigma_24h": 0.2484375,
+          "target_nrmse_pct": 15.0,
+          "voluntary_throttle_mwh": 20955.78118173333
+        },
+        "20.0": {
+          "compute_units": 7375.297153802616,
+          "involuntary_shortfall_mwh": 1.2263975622352346,
+          "realised_nrmse_24h_pct": 20.017591330071042,
+          "sigma_24h": 0.34609375000000003,
+          "target_nrmse_pct": 20.0,
+          "voluntary_throttle_mwh": 21286.82022089976
+        },
+        "5.0": {
+          "compute_units": 7488.389296990387,
+          "involuntary_shortfall_mwh": 0.021899071495487865,
+          "realised_nrmse_24h_pct": 5.004780269292898,
+          "sigma_24h": 0.07421875000000001,
+          "target_nrmse_pct": 5.0,
+          "voluntary_throttle_mwh": 20768.96393517502
+        }
+      },
+      "perfect_foresight_annual": 7498.605946206982
+    },
+    "2023": {
+      "fixed_load": 6540.7728230199355,
+      "forecast_mpc": {
+        "10.0": {
+          "compute_units": 7458.173060735575,
+          "involuntary_shortfall_mwh": 1.6761586030973283,
+          "realised_nrmse_24h_pct": 9.998402231066041,
+          "sigma_24h": 0.15351562500000002,
+          "target_nrmse_pct": 10.0,
+          "voluntary_throttle_mwh": 21169.286276944214
+        },
+        "15.0": {
+          "compute_units": 7425.007255207121,
+          "involuntary_shortfall_mwh": 2.2686675719855627,
+          "realised_nrmse_24h_pct": 14.998070824475754,
+          "sigma_24h": 0.23984374999999997,
+          "target_nrmse_pct": 15.0,
+          "voluntary_throttle_mwh": 21317.8504909188
+        },
+        "20.0": {
+          "compute_units": 7373.065217334736,
+          "involuntary_shortfall_mwh": 6.045415396626914,
+          "realised_nrmse_24h_pct": 20.019687024947963,
+          "sigma_24h": 0.33281250000000007,
+          "target_nrmse_pct": 20.0,
+          "voluntary_throttle_mwh": 21634.630535211232
+        },
+        "5.0": {
+          "compute_units": 7480.5752004588185,
+          "involuntary_shortfall_mwh": 0.5743501847483603,
+          "realised_nrmse_24h_pct": 5.00700780299226,
+          "sigma_24h": 0.07265625,
+          "target_nrmse_pct": 5.0,
+          "voluntary_throttle_mwh": 21098.33312931939
+        }
+      },
+      "perfect_foresight_annual": 7488.50922102388
+    },
+    "2024": {
+      "fixed_load": 6483.143759521432,
+      "forecast_mpc": {
+        "10.0": {
+          "compute_units": 7396.593451034669,
+          "involuntary_shortfall_mwh": 2.2106324248022107,
+          "realised_nrmse_24h_pct": 10.01777306262871,
+          "sigma_24h": 0.15000000000000002,
+          "target_nrmse_pct": 10.0,
+          "voluntary_throttle_mwh": 21712.103356649204
+        },
+        "15.0": {
+          "compute_units": 7364.871123262441,
+          "involuntary_shortfall_mwh": 4.618825931614046,
+          "realised_nrmse_24h_pct": 14.983464418681546,
+          "sigma_24h": 0.2375,
+          "target_nrmse_pct": 15.0,
+          "voluntary_throttle_mwh": 21861.258672133674
+        },
+        "20.0": {
+          "compute_units": 7310.622423316885,
+          "involuntary_shortfall_mwh": 11.101218464967836,
+          "realised_nrmse_24h_pct": 20.011904053175765,
+          "sigma_24h": 0.33203125000000006,
+          "target_nrmse_pct": 20.0,
+          "voluntary_throttle_mwh": 22200.273183237674
+        },
+        "5.0": {
+          "compute_units": 7417.839079943059,
+          "involuntary_shortfall_mwh": 0.17345422247392972,
+          "realised_nrmse_24h_pct": 4.995211783987423,
+          "sigma_24h": 0.0703125,
+          "target_nrmse_pct": 5.0,
+          "voluntary_throttle_mwh": 21663.50438767125
+        }
+      },
+      "perfect_foresight_annual": 7425.315562521117
+    }
+  },
+  "references": {
+    "fixed_load": {
+      "max": 6657.706659149068,
+      "mean": 6422.711889805271,
+      "median": 6420.070197974947,
+      "min": 6139.683698019443,
+      "n": 15,
+      "p10": 6175.713847153838,
+      "p90": 6614.5229801298065,
+      "std": 163.1221908620679
+    },
+    "perfect_foresight_annual": {
+      "max": 7633.994387825012,
+      "mean": 7331.841529154629,
+      "median": 7343.0906506794145,
+      "min": 7011.039800844055,
+      "n": 15,
+      "p10": 7040.534195084604,
+      "p90": 7504.995049702405,
+      "std": 188.56293475555128
+    }
+  },
+  "rows": [
+    {
+      "compute": {
+        "max": 7624.883877059308,
+        "mean": 7322.8791113968,
+        "median": 7334.797441589025,
+        "min": 7000.191402068229,
+        "n": 15,
+        "p10": 7033.499967778436,
+        "p90": 7496.976028972973,
+        "std": 188.6960475744874
+      },
+      "involuntary_shortfall_mwh": {
+        "max": 11.125654005970727,
+        "mean": 3.922875846214927,
+        "median": 1.412924866429376,
+        "min": 0.012248683636496671,
+        "n": 15,
+        "p10": 0.02018308942947298,
+        "p90": 10.325139723639564,
+        "std": 4.533432878577788
+      },
+      "realised_nrmse": {
+        "max": 5.012033299695662,
+        "mean": 4.998232030132422,
+        "median": 4.999630143553805,
+        "min": 4.980859575301316,
+        "n": 15,
+        "p10": 4.986559687264733,
+        "p90": 5.006485346360405,
+        "std": 0.008409780402207643
+      },
+      "target_nrmse_pct": 5.0
+    },
+    {
+      "compute": {
+        "max": 7599.6131666919955,
+        "mean": 7300.560796881851,
+        "median": 7310.993465988326,
+        "min": 6971.973560578241,
+        "n": 15,
+        "p10": 7012.758856330581,
+        "p90": 7479.255487647992,
+        "std": 189.43116890337035
+      },
+      "involuntary_shortfall_mwh": {
+        "max": 12.548905171610818,
+        "mean": 5.213911647021214,
+        "median": 4.2186126475896675,
+        "min": 0.2731953373596512,
+        "n": 15,
+        "p10": 0.5796606870201211,
+        "p90": 11.121186559392651,
+        "std": 4.242090026694289
+      },
+      "realised_nrmse": {
+        "max": 10.01986170727053,
+        "mean": 10.003750219058071,
+        "median": 9.999469514652766,
+        "min": 9.980403724174582,
+        "n": 15,
+        "p10": 9.985877521521921,
+        "p90": 10.019737937106402,
+        "std": 0.01397828537240066
+      },
+      "target_nrmse_pct": 10.0
+    },
+    {
+      "compute": {
+        "max": 7559.459515115379,
+        "mean": 7264.944298235176,
+        "median": 7274.535362227363,
+        "min": 6931.905058024498,
+        "n": 15,
+        "p10": 6971.85956005021,
+        "p90": 7451.435022751729,
+        "std": 191.61718437050973
+      },
+      "involuntary_shortfall_mwh": {
+        "max": 23.08883538195884,
+        "mean": 9.865084244413646,
+        "median": 9.077479071794336,
+        "min": 0.423332230584174,
+        "n": 15,
+        "p10": 1.2521703460331568,
+        "p90": 17.675957611792633,
+        "std": 6.991036147773902
+      },
+      "realised_nrmse": {
+        "max": 15.01999526299199,
+        "mean": 15.002440932414258,
+        "median": 15.002246554486662,
+        "min": 14.983464418681546,
+        "n": 15,
+        "p10": 14.984744046040257,
+        "p90": 15.018762186764729,
+        "std": 0.013156496100433597
+      },
+      "target_nrmse_pct": 15.0
+    },
+    {
+      "compute": {
+        "max": 7506.112945648112,
+        "mean": 7211.075278324434,
+        "median": 7217.721566050076,
+        "min": 6875.195032616743,
+        "n": 15,
+        "p10": 6918.711311295381,
+        "p90": 7404.014166499926,
+        "std": 192.77118562716515
+      },
+      "involuntary_shortfall_mwh": {
+        "max": 40.64853899684675,
+        "mean": 15.207652539967082,
+        "median": 16.093820618905408,
+        "min": 1.1254992314980554,
+        "n": 15,
+        "p10": 3.154004695991907,
+        "p90": 22.661033535559614,
+        "std": 9.785499800194417
+      },
+      "realised_nrmse": {
+        "max": 20.019687024947963,
+        "mean": 20.003696732102757,
+        "median": 20.004375633939386,
+        "min": 19.984337810355797,
+        "n": 15,
+        "p10": 19.992140310959936,
+        "p90": 20.016203588090256,
+        "std": 0.01004730092529019
+      },
+      "target_nrmse_pct": 20.0
+    }
+  ],
+  "settings": {
+    "cooling_fixed_fraction": 0.0,
+    "curve": "h100_llama3_8b_pretrain_mayr2026",
+    "curve_basis_warnings": [
+      "x-axis is the configured power cap, not measured average draw; the simulator spends the cap as if it were consumption"
+    ],
+    "curve_kind": "measured",
+    "mpc_horizon_hours": 48
+  },
+  "sizing": {
+    "battery_duration_h": 4.0,
+    "battery_mw": 30.64491147454219,
+    "battery_mwh": 122.57964589816876,
+    "solar_mw_dc": 49.891335504434885
+  },
+  "year_set": {
+    "label": "dallas_2010_2024_open_meteo_era5",
+    "location": "dallas",
+    "n_years": 15,
+    "note": "Actual calendar years, simulated independently. Never averaged, never stitched into a composite, never mixed across sources.",
+    "source": "open_meteo_era5",
+    "years": [
+      2010,
+      2011,
+      2012,
+      2013,
+      2014,
+      2015,
+      2016,
+      2017,
+      2018,
+      2019,
+      2020,
+      2021,
+      2022,
+      2023,
+      2024
+    ]
+  }
+}

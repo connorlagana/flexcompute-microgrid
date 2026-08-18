@@ -15,10 +15,15 @@ import pytest
 from flexcompute.gpu import (
     CURVES,
     DEFAULT_CURVE_NAME,
+    H100_LLAMA3_DRAW_AXIS,
+    H100_LLAMA3_PRETRAIN,
     H100_VIT_L16_INFERENCE,
+    H100_VIT_L16_TRAIN,
+    SENSITIVITY_CURVE_NAMES,
     SYNTHETIC_CONCAVE_V1,
     CurveProvenance,
     GpuFleet,
+    GpuPerformanceProfile,
     PowerPerformanceCurve,
     get_curve,
 )
@@ -86,10 +91,18 @@ def test_curve_is_concave_so_throttling_is_energy_efficient(curve):
     assert np.all(curve.compute_fraction >= curve.power_fraction - 1e-12)
 
 
-def test_default_curve_is_the_sourced_one():
+def test_default_curve_is_the_measured_llm_training_one():
+    """The primary curve is LLM training with directly measured throughput.
+
+    Changed deliberately in Milestone 7. The previous default measured vision
+    inference and inferred throughput from SM clock; both the workload and the
+    throughput basis were wrong for a facility modelled as running LLM
+    training around the clock.
+    """
     assert get_curve().provenance.name == DEFAULT_CURVE_NAME
-    assert get_curve() is H100_VIT_L16_INFERENCE
-    assert H100_VIT_L16_INFERENCE.provenance.kind == "literature_derived"
+    assert get_curve() is H100_LLAMA3_PRETRAIN
+    assert "LLaMA 3 8B" in get_curve().provenance.workload
+    assert "pre-training" in get_curve().provenance.workload
 
 
 def test_synthetic_curve_is_flagged_as_synthetic():
@@ -97,27 +110,131 @@ def test_synthetic_curve_is_flagged_as_synthetic():
     assert not SYNTHETIC_CONCAVE_V1.is_measured
 
 
-def test_no_shipped_curve_claims_to_be_measured():
-    """We do not currently have direct power-vs-throughput measurements.
+def test_every_curve_declares_both_axis_bases():
+    """Neither axis may be silent about what it actually is."""
+    for name, curve in CURVES.items():
+        if curve.provenance.kind == "synthetic":
+            continue    # invented data has no basis to declare
+        assert curve.provenance.power_basis in {"measured_draw", "power_cap"}, name
+        assert curve.provenance.throughput_basis in {"direct_measurement", "inferred"}, name
+        assert curve.provenance.source, name
+        assert curve.provenance.measurement_scope, name
 
-    When one is added this test should be updated deliberately, not deleted
-    accidentally.
+
+def test_measured_curves_have_directly_measured_throughput():
+    """'measured' is a claim about the data, not a compliment.
+
+    A curve may only carry ``kind='measured'`` if its source reports the
+    workload's own throughput. Inferring throughput from a proxy makes it
+    literature-derived no matter how good the proxy is.
     """
-    assert not any(c.is_measured for c in CURVES.values())
+    for name, curve in CURVES.items():
+        if curve.is_measured:
+            assert curve.provenance.throughput_basis == "direct_measurement", name
+
+
+def test_the_primary_curve_declares_its_power_cap_axis():
+    """The one thing the primary curve is not is a measurement of draw.
+
+    Mayr et al. report no per-cap average power, so the x-axis is the
+    configured cap. That must be visible in the metadata that travels with
+    every result, and it must be surfaced by ``basis_warnings``.
+    """
+    curve = get_curve()
+    assert curve.provenance.power_basis == "power_cap"
+    assert not curve.measures_consumed_power
+    warnings_ = curve.basis_warnings()
+    assert any("power cap" in w for w in warnings_), warnings_
+    assert not any("throughput" in w for w in warnings_), warnings_
+
+
+def test_a_fully_direct_curve_would_warn_about_nothing():
+    """Guards against basis_warnings silently always returning something."""
+    profile = GpuPerformanceProfile(
+        name="hypothetical", kind="measured", gpu="x", workload="y",
+        power_basis="measured_draw", throughput_basis="direct_measurement",
+        source="nowhere", measurement_scope="test",
+    )
+    curve = PowerPerformanceCurve(
+        power_fraction=np.array([0.5, 1.0]),
+        compute_fraction=np.array([0.7, 1.0]),
+        provenance=profile,
+    )
+    assert curve.basis_warnings() == []
 
 
 def test_non_measured_curve_warns():
     with pytest.warns(UserWarning, match="not a direct measurement"):
-        get_curve().warn_if_not_measured()
+        SYNTHETIC_CONCAVE_V1.warn_if_not_measured()
+    with pytest.warns(UserWarning, match="not a direct measurement"):
+        H100_VIT_L16_INFERENCE.warn_if_not_measured()
 
 
 def test_metadata_round_trips_for_results():
     meta = get_curve().metadata()
-    assert meta["kind"] == "literature_derived"
+    assert meta["kind"] == "measured"
     assert meta["gpu"].startswith("NVIDIA H100")
-    assert "ViT-L/16" in meta["workload"]
-    assert meta["source_id"].startswith("arXiv:")
+    assert "LLaMA 3 8B" in meta["workload"]
+    assert meta["source_id"] == "arXiv:2603.16164"
+    assert meta["power_basis"] == "power_cap"
+    assert meta["throughput_basis"] == "direct_measurement"
     assert len(meta["points"]) == len(get_curve().power_fraction)
+
+
+def test_measurement_scope_refuses_to_imply_fleet_scale():
+    """A four-GPU bench must never read as a 10,000-GPU measurement."""
+    for name in ("h100_llama3_8b_pretrain_mayr2026", "h100_vit_l16_train_mayr2026"):
+        scope = CURVES[name].provenance.measurement_scope
+        assert "single node" in scope.lower()
+        assert "4x" in scope.lower() or "4 gpu" in scope.lower()
+
+
+def test_sensitivity_set_is_complete_and_led_by_the_default():
+    assert SENSITIVITY_CURVE_NAMES[0] == DEFAULT_CURVE_NAME
+    assert set(SENSITIVITY_CURVE_NAMES) == set(CURVES)
+
+
+# ---------------------------------------------------------------------------
+# What the SM-clock proxy actually cost
+# ---------------------------------------------------------------------------
+
+def test_sm_clock_proxy_is_within_a_stated_tolerance_of_measured_vit():
+    """Price the inference step the old primary curve rested on.
+
+    ``h100_vit_l16_inference_ujeniya2026`` took SM clock as a throughput proxy.
+    ``h100_vit_l16_train_mayr2026`` measures ViT-L/16 throughput directly on
+    the same GPU at the same six caps. The two are not the same benchmark --
+    one is inference, the other training -- so they are not expected to agree
+    exactly. This pins how far apart they are, so that a future change to
+    either curve has to confront the comparison rather than quietly move it.
+    """
+    proxy = H100_VIT_L16_INFERENCE.compute_fraction
+    direct = H100_VIT_L16_TRAIN.compute_fraction
+    gap = np.abs(direct - proxy)
+    # Measured 2026-08: the proxy under-reads throughput at every partial cap,
+    # by at most ~13 points of compute fraction.
+    assert gap.max() < 0.15, f"proxy vs direct gap grew to {gap.max():.3f}"
+    assert np.all(direct >= proxy - 1e-9), (
+        "SM clock is expected to under-read part-load throughput, not over-read"
+    )
+
+
+def test_draw_axis_sensitivity_is_more_pessimistic_than_the_cap_axis():
+    """The cap axis flatters throttling; the sensitivity curve bounds by how much.
+
+    A GPU draws less than its cap at part load, so the true consumed-power
+    fraction is *higher* than the cap fraction for the same throughput. Re-
+    plotting against measured draw must therefore shift every partial point
+    right, making part-load operation look worse, not better. If this ever
+    flips, the sensitivity curve has stopped being a conservative bound.
+    """
+    cap, draw = H100_LLAMA3_PRETRAIN, H100_LLAMA3_DRAW_AXIS
+    np.testing.assert_allclose(cap.compute_fraction, draw.compute_fraction)
+    assert np.all(draw.power_fraction[:-1] > cap.power_fraction[:-1])
+    xs = np.linspace(0.35, 0.95, 50)
+    assert np.all(
+        draw.compute_fraction_at(xs) <= cap.compute_fraction_at(xs) + 1e-12
+    )
 
 
 # ---------------------------------------------------------------------------

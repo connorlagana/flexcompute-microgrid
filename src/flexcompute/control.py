@@ -45,7 +45,7 @@ an opt-in dependency rather than an accident.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Protocol, runtime_checkable
+from typing import Optional, Protocol, runtime_checkable
 
 import numpy as np
 
@@ -165,3 +165,238 @@ class SimpleThrottleController:
                 "park_below": self.park_below,
             },
         }
+
+
+# ---------------------------------------------------------------------------
+# Plant constants a controller may know without knowing the future
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class PlantConstants:
+    """Nameplate electrical facts about the plant. Scalars only, by design.
+
+    A controller that wants to convert "MW available at the bus" into "MW the
+    GPUs may draw" needs the conversion efficiencies and the inverter rating.
+    Those are datasheet numbers — an operator knows them at commissioning — so
+    handing them to a controller grants no foresight.
+
+    The **scalars only** rule is the enforcement. There is deliberately no
+    field here holding an hourly series: no solar profile, no PUE profile, no
+    demand profile. A controller given a :class:`PlantConstants` therefore
+    *cannot* read ahead even by accident, because there is nothing to read. Any
+    time-varying quantity it needs must arrive through :class:`Observation`,
+    which only ever describes the current hour.
+
+    Contrast :class:`~flexcompute.mpc.PlantModel`, which does carry annual
+    series and is consequently only safe to hand to a controller that also has
+    an explicit forecast object.
+    """
+
+    m_it: float                       # bus MW per IT MW
+    m_cool: float                     # bus MW per cooling MW
+    m_solar_bus: float                # PV DC MW per MW delivered at the bus
+    m_batt_bus: float                 # battery MW drawn per MW delivered at the bus
+    cooling_fixed_fraction: float = 0.0
+    inverter_cap_mw_dc: Optional[float] = None
+
+    def solar_at_bus_mw(self, solar_dc_mw: float) -> float:
+        """PV power reaching the bus this hour, after inverter clipping."""
+        reachable = (
+            solar_dc_mw if self.inverter_cap_mw_dc is None
+            else min(solar_dc_mw, self.inverter_cap_mw_dc)
+        )
+        return reachable / self.m_solar_bus
+
+    def bus_load_coefficients(self, obs: "Observation") -> tuple[float, float]:
+        """``(alpha, beta)`` such that bus load == ``alpha * it_mw + beta``.
+
+        Transcribed from the dispatcher's cooling model so the governor plans
+        against the same physics it will be judged by. ``beta`` is the cooling
+        floor that is drawn regardless of GPU power; it vanishes when cooling is
+        purely proportional (``cooling_fixed_fraction == 0``).
+        """
+        nameplate_cooling_mw = obs.nameplate_it_mw * (obs.pue - 1.0)
+        beta = self.cooling_fixed_fraction * nameplate_cooling_mw * self.m_cool
+        per_it = (
+            (1.0 - self.cooling_fixed_fraction) * nameplate_cooling_mw
+            / obs.unconstrained_demand_mw
+            if obs.unconstrained_demand_mw > 0.0 else 0.0
+        )
+        return self.m_it + per_it * self.m_cool, beta
+
+    def as_dict(self) -> dict:
+        return {
+            "m_it": self.m_it,
+            "m_cool": self.m_cool,
+            "m_solar_bus": self.m_solar_bus,
+            "m_batt_bus": self.m_batt_bus,
+            "cooling_fixed_fraction": self.cooling_fixed_fraction,
+            "inverter_cap_mw_dc": self.inverter_cap_mw_dc,
+        }
+
+
+# ---------------------------------------------------------------------------
+# The Handmer-style governor
+# ---------------------------------------------------------------------------
+
+@dataclass
+class CaseyGovernor:
+    """A minimum-viable governor in the style described by Casey Handmer.
+
+    Source: Casey Handmer, *Direct Current Data Centers*, 30 January 2026,
+    https://caseyhandmer.wordpress.com/2026/01/30/direct-current-data-centers/
+
+    What the source actually says
+    -----------------------------
+    Four statements, quoted, are all the specification there is:
+
+    1. "Throw in a basic 'governor' that throttles the GPU when it predicts the
+       battery will be exhausted before dawn."
+    2. "It merely assesses the time of day, the state of the battery and of
+       solar generation and curtails GPU utilization accordingly."
+    3. "This governor is not very sophisticated, for example, it has no ability
+       to take weather prediction into account."
+    4. "Note how the governor throttles output early on the fourth day by
+       rationing power until the following morning. The cubic power consumption
+       of GPUs means that throttling a little bit early is much better for token
+       production than running full blast into a wall and then dropping to zero
+       production until the sun comes back up."
+
+    The implementation below is the simplest rule satisfying all four:
+
+        allowance = usable stored energy / hours until the next sunrise
+        target    = whatever GPU power (solar now + allowance) can support
+
+    Statement 1 gives the objective (do not be empty before dawn). Statement 2
+    gives the input set, and it is exactly the input set used here — clock,
+    battery, present generation, and nothing else. Statement 3 is enforced
+    structurally: this class has no ``SolarForecast`` field, so it cannot be
+    handed one. Statement 4 gives the behaviour, including the detail that
+    throttling begins *during* a bad day rather than at nightfall, which is why
+    :func:`~flexcompute.solar_clock.hours_until_next_sunrise` points at
+    tomorrow's sunrise while the sun is up.
+
+    What we had to approximate
+    --------------------------
+    The source publishes no formula, so these choices are ours and are recorded
+    in ASSUMPTIONS B14:
+
+    * **Constant-rate rationing.** Spending the battery evenly over the hours to
+      sunrise is the simplest reading of "rationing power until the following
+      morning". The source neither states nor rules out a rate that varies
+      through the night.
+    * **"Solar has returned" is a threshold on present output.** Rationing stops
+      when PV alone can carry ``solar_return_fraction`` of the full-power bus
+      load. The source says the governor assesses "the state of solar
+      generation" but not how.
+    * **The horizon is the ephemeris sunrise**, from solar geometry alone. This
+      is a calendar, not a forecast — see :mod:`flexcompute.solar_clock`.
+    * **Zero reserve by default.** The governor plans to arrive at dawn empty,
+      which is what "exhausted before dawn" implies as the thing to avoid. A
+      reserve knob exists for sensitivity but is off.
+    * **The GPU curve enters only as a floor.** The source's "cubic power
+      consumption" is the *reason* rationing beats running flat out, and this
+      model carries that concavity in the fleet curve rather than in the
+      governor. The governor consults the curve for one decision only: whether
+      the sustainable power is so low that the fleet should park instead of
+      being asked to operate below its measured domain.
+
+    What this is not
+    ----------------
+    Not an optimiser. It does not price stored energy, does not look beyond the
+    next sunrise, and will happily ration against a night that turns out to be
+    followed by a week of overcast. Beating it is the MPC's job; the gap between
+    the two is the value of a weather forecast, which is the number this whole
+    comparison exists to produce.
+    """
+
+    plant: PlantConstants
+    hours_to_sunrise: np.ndarray
+    #: Rationing stops once PV alone covers this multiple of the full-power bus
+    #: load. 1.0 means "the plant can run on sunlight" — the natural reading of
+    #: "solar has returned", and the value used for the headline result.
+    solar_return_fraction: float = 1.0
+    #: Stored energy held back from the nightly ration, as a fraction of
+    #: capacity. Zero is the faithful default; see the docstring.
+    reserve_fraction: float = 0.0
+    name: str = "casey_governor"
+
+    def __post_init__(self) -> None:
+        self.hours_to_sunrise = np.asarray(self.hours_to_sunrise, dtype=float)
+        if self.hours_to_sunrise.ndim != 1:
+            raise ValueError("hours_to_sunrise must be one-dimensional")
+        if np.any(self.hours_to_sunrise <= 0):
+            raise ValueError("hours_to_sunrise must be strictly positive everywhere")
+        if not 0.0 <= self.reserve_fraction < 1.0:
+            raise ValueError("reserve_fraction must lie in [0, 1)")
+        if self.solar_return_fraction < 0.0:
+            raise ValueError("solar_return_fraction must be non-negative")
+
+    def reset(self, *, horizon: int) -> None:
+        if len(self.hours_to_sunrise) < horizon:
+            raise ValueError(
+                f"solar clock covers {len(self.hours_to_sunrise)} hours, need {horizon}"
+            )
+
+    def choose_power(self, obs: Observation) -> float:
+        demand = obs.unconstrained_demand_mw
+        if demand <= 0.0:
+            return 0.0
+
+        alpha, beta = self.plant.bus_load_coefficients(obs)
+        solar_at_bus = self.plant.solar_at_bus_mw(obs.solar_dc_mw)
+        full_bus_load = alpha * demand + beta
+
+        # -- has the sun come back? ---------------------------------------
+        # Measured, present-tense, and the only weather input the governor has.
+        sun_is_back = solar_at_bus >= self.solar_return_fraction * full_bus_load
+
+        # -- how fast may the battery be spent? ----------------------------
+        if sun_is_back:
+            # Generation is carrying the plant; nothing to ration against.
+            allowance_mw = obs.battery_power_mw
+        else:
+            usable_mwh = max(
+                0.0, obs.soc_mwh - self.reserve_fraction * obs.battery_energy_mwh
+            )
+            hours = float(self.hours_to_sunrise[obs.t])
+            allowance_mw = min(obs.battery_power_mw, usable_mwh / hours)
+
+        # -- what GPU power does that support? -----------------------------
+        bus_budget = solar_at_bus + allowance_mw / self.plant.m_batt_bus
+        target = (bus_budget - beta) / alpha if alpha > 0.0 else 0.0
+        target = min(max(target, 0.0), demand)
+
+        # The one place the GPU curve enters: below the fleet's operating floor
+        # there is no measured performance data, so park rather than pretend.
+        if target < obs.min_operating_it_mw:
+            return 0.0
+        return target
+
+    def metadata(self) -> dict:
+        return {
+            "name": self.name,
+            "kind": "heuristic",
+            "parameters": {
+                "solar_return_fraction": self.solar_return_fraction,
+                "reserve_fraction": self.reserve_fraction,
+                "plant": self.plant.as_dict(),
+                "rationing_horizon": "hours to next ephemeris sunrise",
+            },
+            "source": {
+                "author": "Casey Handmer",
+                "title": "Direct Current Data Centers",
+                "date": "2026-01-30",
+                "url": (
+                    "https://caseyhandmer.wordpress.com/2026/01/30/"
+                    "direct-current-data-centers/"
+                ),
+            },
+            "caveat": (
+                "Reimplementation of a governor described in prose, not "
+                "published as code or equations. The constant-rate rationing "
+                "rule, the solar-return threshold and the zero reserve are our "
+                "approximations; see ASSUMPTIONS B14. Uses no weather forecast."
+            ),
+        }
+

@@ -52,7 +52,7 @@ from typing import Optional
 
 import numpy as np
 
-from .control import Observation
+from .control import Observation, PlantConstants
 from .forecast import PerfectSolarForecast, SolarForecast
 from .dispatch import DEFAULT_COOLING_FIXED_FRACTION
 from .gpu import DEFAULT_AGGREGATION, FleetAggregation, GpuFleet, PowerPerformanceCurve, get_curve
@@ -88,6 +88,12 @@ class PlantModel:
     hull_slopes: np.ndarray      # a_i for compute <= a_i * x + b_i
     hull_intercepts: np.ndarray  # b_i
     inverter_cap_mw_dc: Optional[float] = None
+    #: The two multipliers that were folded into ``alpha``. Kept separately so
+    #: :meth:`constants` can hand a forecast-free controller the pieces it needs
+    #: to rebuild the bus-load coefficient from an observed PUE. Optional
+    #: because the LP itself never needs them.
+    m_it: Optional[float] = None
+    m_cool: Optional[float] = None
 
     @property
     def horizon(self) -> int:
@@ -108,6 +114,35 @@ class PlantModel:
             else np.minimum(self.solar_dc_mw, self.inverter_cap_mw_dc)
         )
         return reachable / self.m_solar_bus
+
+    def constants(self, *, cooling_fixed_fraction: float) -> PlantConstants:
+        """Strip the annual series, keeping only the nameplate scalars.
+
+        The narrowing is the point. :class:`PlantModel` carries the realised
+        solar and demand series, so handing one to a controller that has no
+        forecast object would be a foresight leak. :class:`PlantConstants`
+        holds nothing time-varying, so a controller given one is provably
+        unable to read ahead.
+
+        ``alpha`` was built as ``m_it + (1 - cooling_fixed_fraction) *
+        (pue - 1) * m_cool``, which is not invertible into its two multipliers
+        after the fact, so they are carried alongside it and a model built
+        without them refuses this conversion rather than guessing.
+        """
+        if self.m_it is None or self.m_cool is None:
+            raise ValueError(
+                "PlantModel was built without m_it / m_cool, so its bus-load "
+                "coefficients cannot be decomposed. Build it with "
+                "build_plant_model()."
+            )
+        return PlantConstants(
+            m_it=self.m_it,
+            m_cool=self.m_cool,
+            m_solar_bus=self.m_solar_bus,
+            m_batt_bus=self.m_batt_bus,
+            cooling_fixed_fraction=cooling_fixed_fraction,
+            inverter_cap_mw_dc=self.inverter_cap_mw_dc,
+        )
 
     def with_solar(self, solar_dc_mw: np.ndarray) -> "PlantModel":
         """Same plant, different belief about PV availability."""
@@ -264,6 +299,8 @@ def build_plant_model(
         hull_slopes=slopes,
         hull_intercepts=intercepts,
         inverter_cap_mw_dc=inverter_cap,
+        m_it=mult["bus_to_it"],
+        m_cool=mult["bus_to_cooling"],
     )
     return model, fleet
 
@@ -381,6 +418,136 @@ def solve_schedule(
 
 
 # ---------------------------------------------------------------------------
+# The same LP, compiled once (receding-horizon fast path)
+# ---------------------------------------------------------------------------
+
+class _CompiledWindowLP:
+    """A receding-horizon window LP built once and re-solved with new data.
+
+    Why this exists: :func:`solve_schedule` rebuilds and re-canonicalises the
+    problem on every call, and a receding-horizon year calls it 8760 times with
+    an *identical structure* and only the numbers changed. Canonicalisation, not
+    the simplex solve, was the dominant cost -- about 120 s per simulated year,
+    which made the multi-year Experiment B search infeasible.
+
+    Everything that varies between hours is a cvxpy ``Parameter``; everything
+    that is fixed by the plant and the fleet curve stays a constant. The
+    formulation is DPP-compliant, so cvxpy caches the canonical form and each
+    subsequent solve reuses it.
+
+    This is a *performance* path and nothing else. It is restricted to the exact
+    case the receding-horizon controller uses -- fixed initial SOC, terminal
+    value on stored energy, no cyclic constraint, no terminal SOC floor -- so
+    the annual planner and every test keep running through the original
+    :func:`solve_schedule`. ``tests/test_mpc.py`` requires the two paths to
+    agree to solver precision on the executed action; if they ever diverge, the
+    fast path is wrong and the slow one is the reference.
+    """
+
+    def __init__(self, model: PlantModel, *, solver: str):
+        import cvxpy as cp
+
+        n = model.horizon
+        self.n = n
+        self.solver = solver
+
+        u = cp.Variable(n, name="it_power_mw")
+        solar_to_bus = cp.Variable(n, nonneg=True)
+        charge = cp.Variable(n, nonneg=True)
+        discharge = cp.Variable(n, nonneg=True)
+        compute = cp.Variable(n)
+        unserved = cp.Variable(n, nonneg=True)
+        soc = cp.Variable(n + 1)
+
+        # Everything the window changes hour to hour.
+        self.alpha = cp.Parameter(n)
+        self.beta = cp.Parameter(n)
+        self.demand = cp.Parameter(n, nonneg=True)
+        self.inv_demand = cp.Parameter(n, nonneg=True)
+        self.solar_dc = cp.Parameter(n, nonneg=True)
+        self.solar_bus_max = cp.Parameter(n, nonneg=True)
+        self.initial_soc = cp.Parameter(nonneg=True)
+        self.penalty = cp.Parameter(nonneg=True)
+        self.terminal_value = cp.Parameter(nonneg=True)
+
+        # Transcribed from solve_schedule, in the same order, with the same
+        # meanings. Any edit there must be mirrored here or the agreement test
+        # will catch it.
+        constraints = [
+            u >= model.min_power_fraction * self.demand,
+            u <= self.demand,
+            compute >= 0,
+            solar_to_bus + discharge / model.m_batt_bus + unserved
+            == cp.multiply(u, self.alpha) + self.beta,
+            solar_to_bus * model.m_solar_bus + charge * model.m_solar_batt <= self.solar_dc,
+            solar_to_bus <= self.solar_bus_max,
+            charge <= model.battery_mw,
+            discharge <= model.battery_mw,
+            soc[1:] == soc[:-1] + charge - discharge,
+            soc >= 0,
+            soc <= model.battery_mwh,
+            soc[0] == self.initial_soc,
+        ]
+        power_fraction = cp.multiply(u, self.inv_demand)
+        for slope, intercept in zip(model.hull_slopes, model.hull_intercepts):
+            constraints.append(compute <= slope * power_fraction + intercept)
+
+        objective = (
+            cp.sum(compute)
+            - self.penalty * cp.sum(unserved)
+            + self.terminal_value * soc[n]
+        )
+        self.problem = cp.Problem(cp.Maximize(objective), constraints)
+        if not self.problem.is_dcp(dpp=True):
+            raise RuntimeError(
+                "Window LP is not DPP-compliant, so nothing would be cached. "
+                "Refusing to use the fast path."
+            )
+        self._u = u
+        self._soc = soc
+        self._compute = compute
+        self._charge = charge
+        self._discharge = discharge
+        self._unserved = unserved
+
+    def solve(
+        self,
+        model: PlantModel,
+        *,
+        initial_soc_mwh: float,
+        terminal_value_per_mwh: float,
+    ) -> ScheduleSolution:
+        self.alpha.value = model.alpha
+        self.beta.value = model.beta
+        demand = np.clip(model.demand_mw, 0.0, None)
+        self.demand.value = demand
+        self.inv_demand.value = 1.0 / np.where(demand > 0, demand, 1.0)
+        self.solar_dc.value = np.clip(model.solar_dc_mw, 0.0, None)
+        self.solar_bus_max.value = np.clip(model.solar_to_bus_max, 0.0, None)
+        self.initial_soc.value = max(initial_soc_mwh, 0.0)
+        self.terminal_value.value = max(terminal_value_per_mwh, 0.0)
+
+        # Identical to solve_schedule's default pricing, recomputed per window.
+        full_bus_load = float(np.mean(model.demand_mw * model.alpha + model.beta))
+        self.penalty.value = 1000.0 / full_bus_load if full_bus_load > 0 else 1e3
+
+        self.problem.solve(solver=self.solver)
+        if self._u.value is None:
+            raise RuntimeError(f"MPC solve failed with status '{self.problem.status}'")
+
+        return ScheduleSolution(
+            it_power_mw=np.asarray(self._u.value, dtype=float),
+            soc_mwh=np.asarray(self._soc.value, dtype=float),
+            charge_mw=np.asarray(self._charge.value, dtype=float),
+            discharge_mw=np.asarray(self._discharge.value, dtype=float),
+            compute_units=np.asarray(self._compute.value, dtype=float),
+            unserved_bus_mwh=np.asarray(self._unserved.value, dtype=float),
+            objective=float(self.problem.value),
+            status=str(self.problem.status),
+        )
+
+
+# ---------------------------------------------------------------------------
 # Planner and controller
 # ---------------------------------------------------------------------------
 
@@ -482,10 +649,15 @@ class ForecastMPCController:
     horizon_hours: int = 48
     terminal_value_scale: float = 0.95
     solver: str = "HIGHS"
+    #: Re-solve a compiled, parametrised LP instead of rebuilding it every
+    #: hour. Purely a speed choice -- it must not change any answer, which
+    #: ``tests/test_mpc.py`` enforces. Set False to force the reference path.
+    compile_window: bool = True
     name: str = "forecast_mpc"
 
     _solve_count: int = field(default=0, init=False, repr=False)
     _terminal_value: float = field(default=0.0, init=False, repr=False)
+    _compiled: dict = field(default_factory=dict, init=False, repr=False)
 
     def __post_init__(self) -> None:
         self._terminal_value = (
@@ -495,18 +667,34 @@ class ForecastMPCController:
     def reset(self, *, horizon: int) -> None:
         self._solve_count = 0
 
+    def _solve_window(self, window: PlantModel, soc_mwh: float) -> ScheduleSolution:
+        if not self.compile_window:
+            return solve_schedule(
+                window,
+                initial_soc_mwh=soc_mwh,
+                terminal_value_per_mwh=self._terminal_value,
+                solver=self.solver,
+            )
+        # Keyed by horizon length: the interior of the year always hits the same
+        # full-length problem, while the final few truncated windows each
+        # compile once and are used once -- exactly as they were before.
+        compiled = self._compiled.get(window.horizon)
+        if compiled is None:
+            compiled = _CompiledWindowLP(window, solver=self.solver)
+            self._compiled[window.horizon] = compiled
+        return compiled.solve(
+            window,
+            initial_soc_mwh=soc_mwh,
+            terminal_value_per_mwh=self._terminal_value,
+        )
+
     def choose_power(self, obs: Observation) -> float:
         # The forecast is the controller's *belief* about solar; the inverter
         # cap is re-derived from that belief rather than from the truth, so a
         # non-perfect forecast plugs in unchanged.
         window = self.model.window(obs.t, self.horizon_hours)
         window = window.with_solar(self.forecast.horizon(obs.t, window.horizon))
-        solution = solve_schedule(
-            window,
-            initial_soc_mwh=obs.soc_mwh,
-            terminal_value_per_mwh=self._terminal_value,
-            solver=self.solver,
-        )
+        solution = self._solve_window(window, obs.soc_mwh)
         self._solve_count += 1
         return float(solution.it_power_mw[0])
 
@@ -519,6 +707,7 @@ class ForecastMPCController:
                 "terminal_value_scale": self.terminal_value_scale,
                 "terminal_value_compute_per_mwh": self._terminal_value,
                 "solver": self.solver,
+                "compiled_window_lp": self.compile_window,
                 "solves": self._solve_count,
             },
             "forecast": self.forecast.metadata(),

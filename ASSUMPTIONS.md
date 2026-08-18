@@ -259,18 +259,88 @@ disk on first fetch, so every subsequent run is offline and identical. The
 baseline snapshot is verified to reproduce bit-for-bit.
 
 ### B5 — GPU power-performance curve 🟡
-The mapping from GPU power fraction to normalised compute fraction. Two curves
-ship, each carrying its own provenance record; the kind travels with every
-result. **No shipped curve is a direct measurement of power vs throughput**, and
-`test_no_shipped_curve_claims_to_be_measured` enforces that we do not quietly
-start pretending otherwise.
+The mapping from GPU power fraction to normalised compute fraction. Five curves
+ship, each carrying its own provenance record; the kind and both axis bases
+travel with every result.
 
 Both axes are fractions of the workload's *unconstrained* operating point — not
 of TDP and not of peak FLOPS. One compute-unit-hour is what the fleet does in
 one hour running unthrottled, so a fixed-load facility that never misses an
 hour scores exactly 8760.
 
-**`h100_vit_l16_inference_ujeniya2026`** — the default. `literature_derived`.
+**The two axes fail independently, so they are labelled independently.**
+`power_basis` is `measured_draw` or `power_cap`; `throughput_basis` is
+`direct_measurement` or `inferred`. A curve may only carry `kind="measured"` if
+its source reports the workload's own throughput, enforced by
+`test_measured_curves_have_directly_measured_throughput`.
+
+#### `h100_llama3_8b_pretrain_mayr2026` — **the primary curve** (`measured`)
+
+| power cap | power fraction | measured tokens/s per GPU | compute fraction |
+|---|---|---|---|
+| 200 W | 0.286 |  9,699.3 | 0.320 |
+| 300 W | 0.429 | 17,982.3 | 0.594 |
+| 400 W | 0.571 | 24,853.4 | 0.821 |
+| 500 W | 0.714 | 27,705.3 | 0.915 |
+| 600 W | 0.857 | 29,250.0 | 0.966 |
+| 700 W | 1.000 | 30,271.0 | 1.000 |
+
+Source: Mayr, Wind, Schröder, Moradi, Hager, Köstler & Wellein, *AI Application
+Benchmarking: Power-Aware Performance Analysis for Vision and Language Models*,
+[arXiv:2603.16164](https://arxiv.org/abs/2603.16164), Table 4, row
+"Pre-training / H100". Workload: LLaMA 3 8B continued pre-training under LitGPT
+on a ~30M-token English corpus.
+
+Throughput is the application's own token rate, logged per training step through
+framework callbacks with warm-up excluded. **No proxy variable and no inference
+step of ours** — which is what makes this the first `measured` curve the project
+has shipped, and why it replaces the ViT/SM-clock proxy as primary.
+
+Three things it is not, all recorded in the curve's metadata:
+
+- **The x-axis is the configured power cap, not measured average draw.** The
+  paper reports no per-cap average power (its Fig. 1 plots energy efficiency but
+  annotates no values). A GPU draws *less* than its cap at part load, so the cap
+  axis understates true consumption at every partial point, which makes
+  throttling look slightly cheaper than it is. This bias favours the project's
+  hypothesis and is bounded quantitatively by the sensitivity curve below.
+- **Single node, four H100s, reported per GPU.** It does not characterise a
+  10,000-GPU fleet. Interconnect contention, synchronisation stalls and
+  stragglers are all absent, and all of them would flatten the curve.
+  `test_measurement_scope_refuses_to_imply_fleet_scale` pins the disclosure.
+- **Batch size is "the highest that remains stable"** per the paper's protocol
+  rather than a stated number, so the operating point is not exactly
+  reproducible from the publication alone.
+
+`idle_power_fraction = 0.10` is a separate assumption, **not** from the source;
+H100 idle is commonly quoted near 70–100 W against a 700 W TDP.
+
+#### `h100_llama3_pretrain_drawaxis_sensitivity` (`literature_derived`)
+
+The same measured LLM throughputs re-plotted against **measured average power
+draw** (199/298/395/493/591/647 W) taken from Ujeniya et al. at the same six
+caps. Because that draw was measured while running ViT-L/16 rather than LLaMA,
+the pairing is a cross-workload substitution and the curve is explicitly not a
+measurement.
+
+It exists for one purpose: to bound how much the power-cap axis distorts the
+headline. It is strictly the more pessimistic of the two — the measured draw
+saturates 53 W below the 700 W cap, so every partial point shifts right and
+part-load operation looks worse. `test_draw_axis_sensitivity_is_more_pessimistic_than_the_cap_axis`
+requires that direction to hold. **Any headline claim must be re-run against
+this curve.**
+
+#### `h100_vit_l16_train_mayr2026` (`measured`)
+
+ViT-L/16 *training* throughput from Table 3 of the same paper, same node, same
+caps. A different workload, retained as a sensitivity case — and as a
+**direct-measurement control on the SM-clock proxy**: the old primary curve
+inferred ViT throughput from SM clock, and this curve measures it. The proxy
+under-reads part-load throughput at every cap, by up to ~13 points of compute
+fraction, which `test_sm_clock_proxy_is_within_a_stated_tolerance_of_measured_vit`
+pins so that the error cannot drift unnoticed.
+
+#### `h100_vit_l16_inference_ujeniya2026` — the former default (`literature_derived`)
 
 | power cap | measured draw | power fraction | SM clock | compute fraction |
 |---|---|---|---|---|
@@ -301,14 +371,35 @@ single-GPU, so cluster effects (interconnect, synchronisation stalls,
 stragglers) are absent; memory is 36% of package power at the 200 W cap, where
 the compute-bound assumption is weakest.
 
-**`synthetic_concave_v1`** — `synthetic`. The original invented placeholder,
-retained for sensitivity bounding. Values mean nothing.
+#### `synthetic_concave_v1` (`synthetic`)
+
+The original invented placeholder, retained for sensitivity bounding. Values
+mean nothing and it must never appear in a quoted result.
+
+#### How the curves compare, and which way the change cut
+
+At half power the five curves disagree materially, and the replacement of the
+primary curve moved the answer **in favour of** flexible operation — which is
+the direction that demands the most scrutiny:
+
+| curve | compute fraction at 0.50 power |
+|---|---|
+| `h100_llama3_8b_pretrain_mayr2026` (primary) | 0.708 |
+| `h100_llama3_pretrain_drawaxis_sensitivity` | 0.653 |
+| `h100_vit_l16_inference_ujeniya2026` (old default) | 0.624 |
+
+LLM training loses less throughput per watt given up than ViT inference did, so
+throttling is cheaper under the new primary curve than under the old one, and
+every controller advantage should be expected to grow. Roughly half of that
+increase is attributable to the power-cap axis rather than to the workload, as
+the sensitivity row shows. No headline number may be quoted off the primary
+curve alone.
 
 **Refusal to extrapolate.** A curve is defined only over the power range its
-source covers. Below `min_operating_power_fraction` (0.308 for the H100 curve)
-the fleet is modelled as *parked* — drawing idle power, producing zero compute
-— rather than extrapolated. Inventing performance data below the measured floor
-is the exact failure this design prevents.
+source covers. Below `min_operating_power_fraction` (0.286 for the primary
+curve) the fleet is modelled as *parked* — drawing idle power, producing zero
+compute — rather than extrapolated. Inventing performance data below the
+measured floor is the exact failure this design prevents.
 
 **Concavity is the load-bearing property.** Compute fraction exceeds power
 fraction across the whole measured domain, which is what makes backing off
@@ -319,6 +410,12 @@ figure is quoted.
 
 `idle_power_fraction = 0.10` is a separate assumption, **not** from the source
 above; H100 idle is commonly quoted near 100 W against a 700 W TDP.
+
+> **Citation correction.** This curve was requested as "Ujeniya et al. 2026,
+> arXiv:2603.16164". Those are two different papers. arXiv:2603.16164 is Mayr et
+> al. and is the one carrying the H100 LLaMA 3 pre-training measurements;
+> arXiv:2604.11391 is Ujeniya et al. and is the source of the ViT/SM-clock curve
+> already in the project. Both are cited here under their correct identifiers.
 
 ### B6 — The four power quantities 🟢
 Load is never a single number once a controller exists. Four are tracked
@@ -556,6 +653,293 @@ understates forecast difficulty).
 
 ---
 
+### B14 — The Casey Handmer governor is a reimplementation from prose 🟡
+
+`CaseyGovernor` reproduces a controller that was **described in words, not
+published as code or equations**. Everything it does that the source does not
+explicitly state is ours, and is listed here so the reimplementation can be
+challenged on its merits rather than accepted on the name.
+
+**Source.** Casey Handmer, *Direct Current Data Centers*, 30 January 2026,
+<https://caseyhandmer.wordpress.com/2026/01/30/direct-current-data-centers/>.
+The complete specification available is four sentences:
+
+1. "Throw in a basic 'governor' that throttles the GPU when it predicts the
+   battery will be exhausted before dawn."
+2. "It merely assesses the time of day, the state of the battery and of solar
+   generation and curtails GPU utilization accordingly."
+3. "This governor is not very sophisticated, for example, it has no ability to
+   take weather prediction into account."
+4. "Note how the governor throttles output early on the fourth day by rationing
+   power until the following morning. The cubic power consumption of GPUs means
+   that throttling a little bit early is much better for token production than
+   running full blast into a wall and then dropping to zero production until the
+   sun comes back up."
+
+**Directly supported by the source, and implemented as stated:**
+
+| behaviour | sentence |
+|---|---|
+| objective is to avoid being empty before dawn | 1 |
+| inputs are clock, battery state, present generation — and nothing else | 2 |
+| no weather forecast, ever | 3 |
+| rationing spreads stored energy forward to the following morning | 4 |
+| throttling may begin *during* a bad day, not only at nightfall | 4 |
+| a concave power→throughput curve is what makes early throttling pay | 4 |
+
+Sentence 3 is enforced structurally rather than by discipline: the class has no
+`SolarForecast` field, and the plant data it receives (`PlantConstants`) holds
+scalars only, so there is no object in its possession capable of carrying a
+future time series. `tests/test_casey_governor.py` also replaces every future
+solar value with noise and requires the chosen actions to be bit-identical.
+
+**Ours, not the source's — the approximations:**
+
+- **Constant-rate rationing.** Allowance = usable stored energy ÷ hours to the
+  next sunrise, recomputed every hour. "Rationing power until the following
+  morning" does not specify a rate; a flat rate is the simplest reading. Because
+  it is recomputed hourly it is not truly open-loop — a good hour raises the
+  next hour's allowance.
+- **The rationing horizon is the ephemeris sunrise**, from solar geometry alone
+  (`flexcompute.solar_clock`). This is a calendar, not a forecast: sunrise on
+  1 January is knowable in December. During daylight the horizon points at
+  *tomorrow's* sunrise, which is what lets sentence 4's mid-day throttling
+  happen; a horizon of zero during daylight would let the governor spend freely
+  through an overcast day and meet dusk empty.
+- **"Solar has returned" is a threshold on present output**: rationing is
+  released once PV alone covers `solar_return_fraction` (default 1.0) of the
+  full-power bus load. The source says the governor assesses "the state of solar
+  generation" but not how. *Measured sensitivity: this knob is nearly inert.*
+  Values of 1.0, 1.5 and 3.0 give identical annual results, because once PV
+  covers the load the target is capped by demand anyway; 0.5 moves annual
+  compute by less than 0.1%. The one threshold we had to invent turns out not
+  to matter.
+- **Zero reserve by default.** The governor plans to reach dawn empty, which is
+  the literal complement of "exhausted before dawn". *Measured sensitivity:*
+  a reserve trades compute for reliability monotonically (at scale 0.20 on
+  Dallas 2019: reserve 0.00 → +11.3% compute / 940 MWh shortfall; 0.05 → +9.7%
+  / 551 MWh; 0.15 → +6.2% / 361 MWh). The default is therefore the
+  compute-maximising end of the knob, not a tuned choice — it cannot be accused
+  of flattering the governor on the headline metric.
+- **The GPU curve enters only as a floor.** The governor consults it for one
+  decision: park rather than request power below the curve's measured domain.
+  The concavity that sentence 4 appeals to lives in the fleet curve, not in the
+  governor's arithmetic.
+
+**What it is not.** Not an optimiser, and not tuned. It does not price stored
+energy, does not look past the next sunrise, and will ration against a night
+that turns out to be followed by a week of overcast. Its residual involuntary
+shortfall is a direct consequence of the zero reserve — it arrives at dawn with
+nothing, so any morning the sun is late costs it.
+
+Why 🟡: the rule is faithful to every sentence the source provides, and the two
+invented parameters have been shown to be either inert or set at the
+non-flattering end. But it remains our reconstruction, and a quantitative claim
+about "Casey's governor" is really a claim about this reconstruction.
+
+---
+
+### B15 — Actual historical weather years replace the single TMY 🟢
+
+The primary weather input is now **fifteen actual calendar years** (Dallas,
+2010–2024), each simulated independently. They are never averaged, never
+stitched, and never blended into a composite.
+
+**Why a TMY was not enough.** A typical meteorological year is assembled by
+selecting the most *typical* January from a long record, then the most typical
+February, and so on. The algorithm therefore excludes, by construction, the
+multi-day solar drought that made some January atypical — and for an islanded
+plant that drought is the sizing event. Measured on the corrected common scale
+(B16), the worst 72-hour window across the fifteen Dallas years ranges from
+0.0079 to 0.0560 of nameplate: the hardest year's drought is **seven times
+deeper** than the mildest year's.
+
+**Annual sunniness does not predict drought severity.** The correlation between
+a year's capacity factor and the severity of its worst 72-hour window is only
+**+0.46**. A study that picked one "representative" year off annual totals would
+be picking almost at random with respect to the thing that actually sizes the
+plant. This is the direct justification for running every year.
+
+**Sources, and why two.**
+
+| source | coverage | basis | role |
+|---|---|---|---|
+| `open_meteo_era5` | 1950–2025, no key | ERA5 reanalysis, ~25 km | primary; the only source that spans 2010–2024 |
+| `nsrdb_psm4_conus` | 2018–2024, needs a key | NSRDB PSM v4, GOES satellite, 4 km | cross-check over the overlap |
+
+ERA5 is a reanalysis, not a satellite cloud retrieval. It smooths sub-grid cloud
+structure and over-reads irradiance under broken cloud, so it **understates**
+solar droughts. A shallower drought is one in which flexible control is worth
+*less*, so this bias runs against the project's hypothesis and any advantage
+measured on it is more likely an under-estimate than an artefact. Validated
+against NSRDB for Dallas 2019: annual GHI agrees to **0.4%**, mean temperature
+to 0.5 °C; annual DNI is 6.6% higher under ERA5, which is the expected direction
+for a reanalysis.
+
+**Sources must not be mixed across years within one study.** A change of
+instrument between 2017 and 2018 would appear in the results as weather
+variation. `scripts/fetch_weather_years.py` refuses to substitute one source for
+another's missing years.
+
+**Leap-year policy.** The canonical index is 8760 rows, because every positional
+array downstream (load shape, PUE, solar) is 8760 long. A leap year is
+reconciled by **dropping 29 February** — 24 rows — not by truncating the tail.
+Dropping the leap day preserves seasonal alignment, so 1 July is 1 July in every
+year; truncating would slide every post-February date by one day in leap years
+only, and that would show up as spurious year-to-year variation in exactly the
+winter hours that matter. Four of the fifteen years are affected, and each
+records `leap_day_dropped` in its provenance.
+
+---
+
+### B16 — Upstream's per-year solar normalisation is undone 🟢 *(a corrected error)*
+
+Upstream's `get_solar_generation` divides its PV profile by **that year's own
+maximum hour**:
+
+```python
+max_dc = np.max(dc_power_values)
+p_dc_normalized = dc_power_values / max_dc
+```
+
+For a single TMY this is harmless bookkeeping. Across many years it is a defect,
+because it makes "200 MW-DC of solar" describe a *different physical array* in
+every year: a year whose single sunniest hour was 5% better has its entire
+8760-hour profile scaled down 5% relative to another year.
+
+**Why the divisor is systematically biased.** pvlib's PVWatts inverter clips AC
+output at `pdc0 = 1`. The PVGIS TMY exceeds nameplate in 79 hours — cold, clear,
+high-irradiance — so its maximum saturates at exactly 1.0 and the division does
+nothing. ERA5 years never reach nameplate, because a reanalysis smooths away
+exactly those extreme hours, so every one of them is divided by something less
+than one. The inflation is largest for the *cloudiest* years, which never come
+close to nameplate.
+
+Measured at Dallas 2010–2024: divisors range 0.914–0.994, inflating annual
+output by +0.6% to +9.4%. **The artefact is rank-changing.** Under upstream's
+normalisation 2012 appears to be the sunniest year in the record (capacity
+factor 0.275); on a common scale it is mid-pack (0.251) and 2011 is the true
+leader. A study whose central output is the distribution of controller value
+*across weather years* cannot run on a scale that reorders the years.
+
+**The correction.** `flexcompute.pv_model` replicates upstream's model chain and
+recovers the divisor, which `build_site` multiplies back in. The values are then
+per unit of nameplate DC, the scale on which a MW rating means one array
+everywhere.
+
+Two things make this safe rather than a silent re-scaling of the whole project:
+
+- `tests/test_pv_model.py` asserts our replicated chain reproduces upstream's
+  normalised profile **bit-for-bit**, so a change to upstream's PV configuration
+  fails loudly instead of quietly moving every solar number;
+- for the PVGIS TMY the divisor is **exactly 1.0**, so the correction is a
+  literal no-op there and the committed baseline snapshot is unchanged — which
+  the snapshot test independently confirms.
+
+`upstream/` is not modified. The correction is applied on our side of the seam.
+
+---
+
+### B17 — The receding-horizon LP is compiled, and that must change nothing 🟢
+
+`ForecastMPCController` re-solves a **parametrised, pre-canonicalised** LP each
+hour instead of rebuilding the problem. Canonicalisation, not the simplex solve,
+was the dominant cost: a simulated year fell from ~57 s to ~21 s (2.7×), which
+is what makes a multi-year sizing search affordable at all.
+
+This is a performance change and is allowed to be nothing else. Three things
+keep it honest:
+
+- the fast path is restricted to the exact case the controller uses — fixed
+  initial SOC, terminal value on stored energy, no cyclic constraint, no
+  terminal SOC floor — so the annual planner and every existing test keep
+  running through the original `solve_schedule`, which remains the reference;
+- the formulation is asserted **DPP-compliant** at construction, because if it
+  were not, cvxpy would silently re-canonicalise every solve and the speedup
+  would vanish while all tests still passed;
+- `tests/test_mpc.py` runs a full simulated year down both paths and requires
+  agreement to **1e-9 relative on every hourly action** and 1e-12 on annual
+  compute. Measured agreement is ~1e-13 relative; the two are not bit-identical
+  because HiGHS canonicalises the two formulations in a different order, which
+  moves the last couple of ulps.
+
+`compile_window=False` forces the reference path, and every result records which
+path produced it.
+
+---
+
+### B18 — The Experiment B reliability criterion 🟡
+
+Experiment B's original form (**B1**) required only equal compute. That let a
+design reach its target partly by browning out, and the re-sized fixed-load
+plant did exactly that while the flexible designs booked almost none — so the
+capital comparison was not like-for-like.
+
+**B2** adds one constraint: annual involuntary shortfall must not exceed a cap,
+applied identically to every strategy. The cap is **what the reference
+99%-uptime plant itself books under a fixed load in that weather year** (441
+MWh/yr for Dallas 2019).
+
+*Why this cap and not a tighter one.* The instruction was not to choose a
+criterion that automatically favours flexible operation, and this one does not:
+
+- it is derived from the **fixed-load** design's own behaviour, not from the
+  flexible designs';
+- a design that was already reliable pays nothing for it — verified by test,
+  a strategy whose unconstrained optimum sits inside the cap returns the
+  identical design when the cap is applied;
+- a flexible controller must buy its reliability from the same capital budget as
+  everyone else.
+
+A *tighter* cap would favour flexible operation, since flexible designs land
+near zero shortfall anyway. That is why the neutral cap is the headline and any
+tighter variant must be labelled as the biased sensitivity it is.
+
+**Measured outcome: the constraint barely binds.** The re-sized fixed-load plant
+lands at 433 MWh against a 441 MWh cap, so for most cases the B1 and B2 optima
+are identical. Where B1's optimum does drift over the cap — the fixed-duration
+12 h case, at 452.5 MWh — B2 pulls it back for +0.1 M$ (278.8 → 278.9). So the
+reliability mismatch that motivated B2 is real, measurable, and **worth about a
+tenth of a percent of capital**: it does not change the answer. That is a
+stronger result than either variant alone would have given, and both are
+reported.
+
+---
+
+### B19 — Battery duration beyond the cost source's range 🟠
+
+The storage cost split ($/kW + $/kWh) is derived from NLR/NREL's published
+2/4/6/8/10-hour table (see `costs.py`). **Every free-duration optimum in
+Experiment B lands at 12–15 hours, outside that range**, where the affine fit is
+an extrapolation rather than a sourced price.
+
+This is flagged mechanically, not in a footnote: `SizingSearchResult`
+`.duration_extrapolated` travels with every result, the reporting table marks
+those rows with `!`, and the figures label them.
+
+Task-7 sensitivity, Dallas 2019, B1, minimum CAPEX:
+
+| duration | `fixed_load` | `perfect_foresight_annual` | control advantage |
+|---|---|---|---|
+| 4 h | 327.2 M$ | 274.5 M$ | −16.1% |
+| 8 h | 290.1 M$ | 244.8 M$ | −15.6% |
+| 12 h ! | 278.8 M$ | 234.9 M$ | −15.7% |
+| free (12–14 h) ! | 278.0 M$ | 235.0 M$ | −15.5% |
+
+Two things follow. The **control advantage is insensitive to duration** — it
+sits at −15.5% to −16.1% across the whole range, so the headline does not depend
+on the extrapolated region. But the **absolute** capital does: forcing 4-hour
+storage costs 15–17% more than letting duration float, and that part of the
+answer *is* extrapolated at the optimum.
+
+So: a 12–15 hour battery is what this cost model prefers, and that preference
+must not be quoted as an economic finding about real batteries until the cost
+decomposition is sourced over that range. What can be quoted is the 8-hour row,
+which is inside the source data and gives essentially the same control
+advantage.
+
+---
+
 ## 3. Deliberately not modelled
 
 Listed so that nobody has to rediscover them, and so no result over-claims.
@@ -652,6 +1036,35 @@ where the omitted terms scale similarly across strategies — but it is not an
 LCOE and must never be quoted as one. A levelised cost of *compute* (A12)
 remains open.
 
+### Q3a — Does non-sheddable cooling change the answer? 🟢 *(measured)*
+
+The linear-cooling inheritance (A4) flatters throttling: it assumes cooling
+power falls in exact proportion to GPU power, so a throttled facility pays no
+fixed overhead. Q3 introduced `cooling_fixed_fraction` to make part of cooling
+non-sheddable. This is the sensitivity that says how much it matters.
+
+Experiment A, 15 Dallas years, median advantage over fixed load:
+
+| | scale 0.25 | | | scale 0.40 | | |
+|---|---|---|---|---|---|---|
+| cooling fixed fraction | 0.0 | 0.3 | 0.5 | 0.0 | 0.3 | 0.5 |
+| `simple_throttle` | −7.76% | −8.65% | −9.05% | −3.36% | −3.70% | −3.88% |
+| `casey_governor` | +6.88% | +6.46% | +6.17% | −3.01% | −3.36% | −3.59% |
+| `forecast_mpc` | +13.85% | +12.54% | +11.84% | +3.68% | +3.30% | +3.07% |
+| `perfect_foresight_annual` | +14.21% | +13.09% | +12.42% | +4.08% | +3.78% | +3.52% |
+
+The effect is monotone, in the expected direction, and modest. Making **half**
+of cooling non-sheddable — well beyond what A4's linear model implies and beyond
+what we would defend as realistic — costs the perfect-foresight advantage
+**12.6% of its own magnitude** at scale 0.25 (14.21 → 12.42 points) and 13.7% at
+scale 0.40. Every strategy's ranking is unchanged at every fraction.
+
+So the headline is **not an artefact of the linear-cooling assumption**: the
+assumption flatters throttling, as declared, but removing half of the flattery
+moves the result by roughly an eighth of itself rather than overturning it. It
+is not free either, and `cooling_fixed_fraction = 0.0` must never be the sole
+reported case.
+
 ### Q3 — PUE at part load 🟢 *(resolved)*
 **Problem:** A4. Linear cooling scaling over-credits throttling.
 
@@ -739,27 +1152,60 @@ Kept explicit so the final write-up cannot quietly skip them.
 
 1. **A4 (linear cooling)** biases results in favour of our hypothesis.
 2. **B5 (GPU curve)** determines the magnitude of the headline result. The
-   default is now sourced rather than invented, but the throughput-proportional-
-   to-SM-clock step is ours, and the workload (ViT inference) is not the
-   workload being modelled (LLM training).
+   primary curve's *throughput* is now a direct measurement of the right
+   workload (LLaMA 3 8B pre-training), which removes the SM-clock inference
+   step and the wrong-workload objection. Two problems remain, and the first
+   favours our hypothesis: **the power axis is a configured cap, not measured
+   draw**, which understates consumption at part load and makes throttling look
+   cheaper than it is; and the measurement is **single-node, four GPUs**, so
+   nothing about cluster-scale behaviour is captured. Every headline must be
+   re-run against `h100_llama3_pretrain_drawaxis_sensitivity`, which bounds the
+   first. Note also that the curve change *increased* the modelled value of
+   flexibility (0.624 → 0.708 compute at half power), so it moved the answer in
+   the direction we wanted, which is reason for more scepticism, not less.
 3. **A3 (flat baseline workload)** is the most favourable possible comparison.
 4. ~~**A7 (free initial energy)**~~ — resolved by the cyclic boundary condition
    (Q1). Every comparison now runs a self-sustaining year.
 5. **B1 (weather source)** means absolute figures are not comparable to the
-   published paper.
-6. **Single TMY year, single location.** A TMY is a synthetic average year and
-   under-represents multi-day low-solar events, which are exactly the events
-   that size an islanded system. Multi-year and multi-site runs are needed
-   before generalising.
+   published paper. With B15 there are now three sources in play (PVGIS TMY,
+   ERA5 historical, NSRDB historical) and results are only comparable within
+   one of them.
+6. ~~**Single TMY year**~~ — addressed by B15: fifteen actual Dallas years,
+   simulated independently. Two things this exposed are worth keeping in view.
+   First, a year's annual capacity factor barely predicts the severity of its
+   worst multi-day drought (correlation +0.46), so no single "representative"
+   year is defensible. Second, the primary multi-year source is a **reanalysis**
+   (ERA5), which smooths cloud structure and therefore understates droughts;
+   this runs against our hypothesis, and is cross-checked against satellite
+   NSRDB over 2018–2024. **Still single-location.** Dallas only; nothing here
+   generalises to a different solar climate.
+6b. **B16 (per-year solar normalisation)** was a real defect, now corrected: the
+   reference model rescaled every year by its own peak hour, inflating cloudy
+   years by up to 9.4% and *reordering* which year looked sunniest. Any
+   multi-year result produced before that correction is invalid. The correction
+   depends on a replication of upstream's PV chain, pinned bit-for-bit by test.
 7. **Perfect-foresight MPC is an upper bound, not an achievable design.** It
    must always be reported as such, alongside the forecast-aware result.
 8. **Experiment A is the wrong place to look for the prize.** At the
-   fixed-load-optimal sizing the system curtails 73% of its solar, so energy is
-   not the binding constraint and even *perfect foresight* wins only +0.23%.
-   Sizing is driven by the 99%-uptime tail, and compute is far more forgiving
-   than uptime. The advantage grows to +9.8% at one-fifth the plant, so the
-   value of flexible operation shows up as infrastructure avoided, not compute
-   gained. Any framing that implies otherwise is misleading.
+   fixed-load-optimal sizing the system curtails ~72% of its solar, so energy is
+   not the binding constraint and even *perfect foresight* wins only +0.40%
+   (median of 15 years). Sizing is driven by the 99%-uptime tail, and compute is
+   far more forgiving than uptime. The advantage grows to +17.5% at one-fifth
+   the plant, so the value of flexible operation shows up as infrastructure
+   avoided, not compute gained. Any framing that implies otherwise is
+   misleading.
+8b. **Compute is not comparable across strategies at unequal reliability.** At
+   scales 0.40–0.60 the fixed load *out-scores* both forecast-free heuristics on
+   compute while booking 3,000–7,500 MWh/yr of involuntary shortfall against
+   their ~100–300. Two explanations were plausible and were tested: re-running
+   under `per_device` aggregation (which removes B8's partial brownout credit)
+   moves `fixed_load` by 0.2% and makes `casey_governor` *slightly worse*
+   (−3.19% → −3.67% at scale 0.40, Dallas 2019). **So it is not a scoring
+   artefact** — a forecast-free governor genuinely over-rations in this range,
+   because it must hedge against a tomorrow it cannot see. What the compute
+   metric cannot express is that the two designs differ 28-fold in unserved
+   energy, which it prices at zero. Every table prints shortfall beside compute
+   for that reason, and Experiment B's B2 variant is where the trade is priced.
 9. **B8 (fleet aggregation)** gives partial compute credit during brownouts and
    assumes free rack-granular power control. Both favour the hypothesis. Report
    `per_device` alongside.
@@ -770,16 +1216,22 @@ Kept explicit so the final write-up cannot quietly skip them.
     to 0.000000 compute-units, and that agreement must be re-checked after any
     change to either. It is the single point where a subtle physics
     inconsistency could invalidate every MPC number without any test failing.
-12. **Most of Experiment B's saving is not attributable to control.** Measured:
-    −22.4% comes from changing the success metric from 99% uptime to delivered
-    compute, and only −7.8% from flexible operation on top. Reporting the −28.5%
-    total as the value of forecast-aware control overstates it roughly threefold.
-13. **Experiment B is not reliability-matched.** At equal compute the re-sized
-    fixed-load plant still books ~395 MWh/yr of involuntary shortfall while the
-    flexible designs book zero. That runs *in the flexible design's favour*, so
-    the capital comparison understates its advantage — but it is not
-    like-for-like, and a reliability-constrained re-run is needed before the
-    number is quoted.
+12. **Most of Experiment B's saving is still not attributable to control**, but
+    the split has moved. On Dallas 2019 with the measured LLM curve: −26.1%
+    comes from changing the success metric from 99% uptime to delivered compute
+    (fixed load re-sized), and −15.5% from perfect-foresight operation on top.
+    The control share roughly doubled versus the old ViT-curve result (−7.8%),
+    because LLM training loses less throughput per watt given up. Reporting the
+    combined total as the value of control still overstates it, now by about a
+    factor of two rather than three.
+13. ~~**Experiment B is not reliability-matched.**~~ — addressed by B18. A
+    reliability-constrained variant (B2) now runs alongside the equal-compute
+    one (B1), with a cap taken from the fixed-load reference plant's own
+    behaviour so the criterion cannot favour flexible operation by
+    construction. **The constraint turns out barely to bind**: the re-sized
+    fixed-load plant lands at 433 MWh against a 441 MWh cap, and where B1's
+    optimum does drift over it, B2 pulls it back for about +0.1 M$. The
+    mismatch was real, is now measured, and does not change the answer.
 14. **The forecast error model is synthetic (B13).** Its structure is defensible
     and its two biases are declared — successive forecasts converge
     monotonically on the truth (optimistic), and error never averages away
@@ -790,7 +1242,24 @@ Kept explicit so the final write-up cannot quietly skip them.
     controller mis-forecasting a hot day gets generation *and* cooling load
     wrong together, in the same direction (B9).
 15. **Experiment B prices year-0 capital only.** No O&M, no battery replacement,
-    no degradation, no discounting. Since the optimised designs choose ~14-hour
+    no degradation, no discounting. Since the optimised designs choose 12–15-hour
     storage rather than 4-hour, they sit far from the point where upstream's
     O&M and replacement figures were calibrated, and those terms may not scale
     the way this comparison implicitly assumes.
+16. **B19 (duration extrapolation).** Every free-duration optimum sits outside
+    the 2–10 h range the battery cost split is sourced over. The *control
+    advantage* is insensitive to duration (−15.5% to −16.1% from 4 h to free),
+    so the headline survives; the *absolute* capital does not, and the claim
+    that 12–15 h storage is preferable is an extrapolation, not a finding.
+17. **Experiment B runs on one weather year, not fifteen.** Each forecast-MPC
+    sizing search costs hours of compute. Experiment A shows the controller
+    advantage is remarkably consistent across years (top-3 years hold 21% of
+    the gain against 20% for an even spread), which is reason to expect the
+    capital result to be stable too — but that is an inference, not a
+    measurement.
+18. **The forecast-MPC sizing search runs on a reduced budget.** ~180
+    evaluations against ~630 for the cheap strategies, because each evaluation
+    simulates a full MPC year. A smaller search can only *miss* a cheaper
+    design, never invent one, so forecast MPC's capital is an upper bound and
+    its advantage over fixed load is understated. Recorded in the result
+    metadata.

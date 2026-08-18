@@ -287,6 +287,10 @@ class NoisySolarForecast:
             }
         return stats
 
+    def realised_nrmse_24h_pct(self) -> float:
+        """Realised day-ahead nRMSE as a percent of capacity. The reportable number."""
+        return float(self.error_stats((24,))["lead_24h"]["nrmse_pct_of_capacity"])
+
     def metadata(self) -> dict:
         return {
             "name": self.name,
@@ -310,3 +314,95 @@ class NoisySolarForecast:
                 "re-plans (pessimistic). See ASSUMPTIONS B13."
             ),
         }
+
+
+# ---------------------------------------------------------------------------
+# Calibrating the error model to a *realised* skill level
+# ---------------------------------------------------------------------------
+#
+# ``sigma_24h`` is a fraction of each hour's clear-sky potential. That is the
+# right internal parameterisation (see the class docstring) but it is not what
+# forecasters publish and not what a reader can compare against. Worse, the
+# mapping from sigma to realised nRMSE depends on the site *and the year*: a
+# cloudier year has a different envelope, so the same sigma lands at a
+# different realised error.
+#
+# Reporting a sweep indexed by sigma would therefore be comparing different
+# error levels across years while calling them the same. These helpers invert
+# the relationship instead, so a sweep can be specified in the units that mean
+# something -- realised day-ahead nRMSE -- and every year is genuinely run at
+# the level it claims.
+
+#: Reference day-ahead skill for the headline forecast-aware result, as
+#: realised nRMSE percent of capacity. Roughly what single-site day-ahead solar
+#: forecasting achieves in practice. This is an error *magnitude*, not a
+#: frequency: it is emphatically NOT "wrong 10% of the time".
+REFERENCE_NRMSE_24H_PCT = 10.0
+
+#: The sweep. Chosen to bracket the reference on both sides.
+NRMSE_SWEEP_PCT = (5.0, 10.0, 15.0, 20.0)
+
+
+def calibrate_sigma_for_nrmse(
+    actual_dc_mw: np.ndarray,
+    target_nrmse_pct: float,
+    *,
+    tolerance_pct: float = 0.02,
+    max_iterations: int = 60,
+    **forecast_kwargs,
+) -> float:
+    """Find the ``sigma_24h`` whose *realised* day-ahead nRMSE hits a target.
+
+    Monotone in sigma, so plain bisection converges. Bracketing starts small
+    and doubles until the target is exceeded, which keeps the search valid for
+    any site whose envelope differs from the one the defaults were tuned on.
+
+    Returns the sigma; the caller should still record the realised error the
+    resulting forecast actually achieves rather than trusting this to be exact.
+    """
+    if target_nrmse_pct <= 0:
+        raise ValueError("target_nrmse_pct must be positive")
+
+    def realised(sigma: float) -> float:
+        return NoisySolarForecast(
+            actual_dc_mw, sigma_24h=sigma, **forecast_kwargs
+        ).realised_nrmse_24h_pct()
+
+    low, high = 0.0, 0.05
+    for _ in range(20):
+        if realised(high) >= target_nrmse_pct:
+            break
+        low, high = high, high * 2.0
+    else:
+        raise RuntimeError(
+            f"Could not bracket a sigma reaching {target_nrmse_pct}% nRMSE; "
+            "the clear-sky envelope may be degenerate."
+        )
+
+    for _ in range(max_iterations):
+        mid = 0.5 * (low + high)
+        error = realised(mid)
+        if abs(error - target_nrmse_pct) <= tolerance_pct:
+            return mid
+        if error < target_nrmse_pct:
+            low = mid
+        else:
+            high = mid
+    return 0.5 * (low + high)
+
+
+def forecast_at_realised_nrmse(
+    actual_dc_mw: np.ndarray,
+    target_nrmse_pct: float = REFERENCE_NRMSE_24H_PCT,
+    **forecast_kwargs,
+) -> "NoisySolarForecast":
+    """A :class:`NoisySolarForecast` calibrated to a stated realised skill.
+
+    The construction every forecast-aware experiment should use, so that "10%
+    forecast error" means the same thing in every weather year rather than
+    meaning "the same sigma, whatever that turned out to be".
+    """
+    sigma = calibrate_sigma_for_nrmse(
+        actual_dc_mw, target_nrmse_pct, **forecast_kwargs
+    )
+    return NoisySolarForecast(actual_dc_mw, sigma_24h=sigma, **forecast_kwargs)

@@ -258,15 +258,72 @@ Still open in this milestone:
   together, in the same direction.
 ---
 
-## Milestone 7 — Everything the headline still needs
+## ✅ Milestone 7 — Real inputs *(complete)*
 
-- Levelised cost of *compute* (A12) to replace the year-0 capital comparison:
-  O&M, battery replacement, degradation and discounting.
-- Re-sizing under a *reliability* constraint as well as a compute constraint,
-  since the re-sized fixed-load plant hits its compute target partly by
-  browning out.
-- Multi-site and multi-year runs. A single TMY year at one location
-  under-represents multi-day low-solar events, which are exactly what sizes an
-  islanded plant (threat 6).
-- Sensitivity as a matter of routine: GPU curve (B5), fleet aggregation (B8),
-  part-load cooling (Q3), terminal value (B10).
+**Goal:** find out whether the result survives more realistic inputs. It did,
+and it moved — in the direction that demands the most scrutiny.
+
+Delivered:
+
+- **`CaseyGovernor`** — the forecast-free heuristic the MPC has to beat,
+  reimplemented from Casey Handmer's published description with every
+  approximation recorded (B14). Structurally incapable of receiving a forecast:
+  it takes `PlantConstants` (scalars only) and an ephemeris, and a test proves
+  its actions are invariant to every future solar value.
+- **`solar_clock.py`** — solar geometry as a *calendar*, kept rigorously apart
+  from `forecast.py`, which supplies *beliefs about weather*.
+- **A directly measured primary GPU curve** — H100 running LLaMA 3 8B
+  pre-training, throughput logged by the training framework
+  (`arXiv:2603.16164`). The first `kind="measured"` curve the project has
+  shipped. Both axes now declare their basis independently, because the power
+  axis is a configured cap rather than observed draw and that must not be
+  hidden. Three sensitivity curves ship alongside it, including one that bounds
+  the cap-vs-draw distortion.
+- **Fifteen actual Dallas weather years** (2010–2024) behind a historical
+  provider interface, never averaged and never mixed across sources, with an
+  explicit leap-day policy and a satellite cross-check.
+- **Forecast error indexed by realised nRMSE**, calibrated per year, so a sweep
+  compares the same skill level in every year.
+- **Experiment B, reliability-matched** (B2) alongside the equal-compute-only
+  variant (B1), plus fixed-duration variants and an explicit
+  cost-extrapolation flag.
+- **A ~2.7× MPC speedup** from a compiled, parametrised window LP, gated by a
+  test requiring agreement with the reference solver to 1e-9 on every hourly
+  action.
+
+Found along the way, and the most consequential item in this milestone: the
+inherited PV model **renormalised every weather year by that year's own peak
+hour**. It inflated cloudy years by up to 9.4% and reordered which year looked
+sunniest — a rank-changing artefact in exactly the variable a multi-year study
+measures. Corrected in `pv_model.py`, with our replication of upstream's model
+chain pinned bit-for-bit by test (B16).
+
+**Check:** `python -m pytest && python scripts/run_baseline.py --check`
+
+---
+
+## Milestone 8 — What the headline still needs
+
+- **Levelised cost of *compute*** (A12) to replace the year-0 capital
+  comparison: O&M, battery replacement, degradation and discounting. The
+  optimised designs land at 12–15 h storage, far from where upstream's O&M and
+  replacement figures were calibrated, so this is not a cosmetic addition.
+- **Battery cost beyond 10 h.** The $/kW + $/kWh split is sourced over 2–10 h.
+  Every free-duration optimum sits outside that range and is flagged as an
+  extrapolation; a sourced long-duration cost curve would settle whether
+  12–15 h storage is genuinely optimal or an artefact of extrapolating a linear
+  fit.
+- **Experiment B across all fifteen years**, not one representative year. Each
+  forecast-MPC sizing search is hours of compute, so this needs either more
+  budget or a cheaper search.
+- **A second site.** Everything here is Dallas. Nothing generalises to a
+  different solar climate without being re-run.
+- **Cluster-scale GPU behaviour.** The primary curve is a four-GPU, single-node
+  measurement. Interconnect contention and stragglers are absent and would
+  flatten it.
+- **Forecasting PUE and demand**, not just solar (B9). A real controller
+  mis-forecasting a hot day gets generation and cooling load wrong together, in
+  the same direction.
+- **Satellite weather for the full window.** NSRDB PSM4 CONUS starts in 2018;
+  the 15-year study runs on ERA5 reanalysis, which smooths droughts and
+  therefore understates the value of control.

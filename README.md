@@ -35,17 +35,28 @@ useful work.
 
 ## Status
 
-**Experiment B has a first answer, and forecast error has now been priced.**
-Four strategies run against identical weather, hardware and demand, on a
-self-sustaining year, with battery power and energy priced and sized
-independently. The LP planner's prediction matches the dispatcher to
-**0.000000 compute-units**. The controller has since been re-run against a
-*belief* rather than the truth, which is the test of whether any of this is
-buildable — see [What if the forecast is wrong?](#what-if-the-forecast-is-wrong)
-below. Still missing before the headline is quotable: forecast error applied to
-**Experiment B's capital search** (the −7.8% remains a perfect-foresight
-number), levelised cost rather than year-0 capital, and more than one
-site-year. See `docs/ROADMAP.md`.
+**The study now runs on fifteen actual Dallas weather years and a directly
+measured H100 LLM-training curve.** Six control policies, from doing nothing to
+perfect foresight, against identical weather, hardware and demand, on a
+self-sustaining year. The LP planner's prediction still matches the dispatcher
+to **0.000000 compute-units**.
+
+Three inputs changed, and two of them moved the answer:
+
+| | before | now |
+|---|---|---|
+| GPU curve | ViT-L/16 inference, throughput inferred from SM clock | **LLaMA 3 8B pre-training, throughput measured** (`arXiv:2603.16164`) |
+| weather | one PVGIS TMY | **15 actual years, 2010–2024** (ERA5, cross-checked against NSRDB) |
+| forecast error | indexed by the model's internal sigma | **indexed by realised day-ahead nRMSE**, calibrated per year |
+
+Along the way a real defect surfaced in the inherited PV model: it renormalised
+every year by that year's own peak hour, inflating cloudy years by up to 9.4%
+and **reordering which year looked sunniest**. Any multi-year result computed
+before that fix is invalid. See `ASSUMPTIONS.md` B16.
+
+Still open: levelised cost rather than year-0 capital, a second site, and
+Experiment B across all fifteen years rather than a representative one.
+See `docs/ROADMAP.md`.
 
 | | |
 |---|---|
@@ -54,265 +65,311 @@ site-year. See `docs/ROADMAP.md`.
 | `docs/ROADMAP.md` | Milestone plan |
 | `results/` | Comparison output and figures |
 
-### Experiment A — fixed infrastructure, four control policies
+### The comparison ladder
 
-Same site, same year, same 200 MW-DC solar, same 123 MW / 490 MWh battery.
-Only the decision policy differs.
+Six policies, differing only in **what the controller is allowed to know**:
 
-| | compute | vs fixed | curtailed | unserved MWh | h throttled |
-|---|---|---|---|---|---|
-| `fixed_load` | 8717.45 | — | 73.44% | **396.1** | 0 |
-| `simple_throttle` | 8686.61 | −0.354% | 73.63% | 0.0 | 286 |
-| `perfect_foresight_mpc` (48 h) | 8709.77 | −0.088% | 73.58% | 0.0 | 333 |
-| `perfect_foresight_annual` | **8737.74** | **+0.233%** | 73.44% | 0.0 | 222 |
+| rung | knows | |
+|---|---|---|
+| `fixed_load` | nothing — demand is exogenous | the reference model |
+| `simple_throttle` | battery SOC | deliberately naive |
+| `casey_governor` | SOC + clock + present generation | **no weather forecast** |
+| `forecast_mpc` | a day-ahead forecast that can be wrong | the deployable design |
+| `perfect_foresight_mpc` | the realised future, 48 h at a time | upper bound |
+| `perfect_foresight_annual` | the realised future, all 8760 h | the ceiling |
 
-**Even perfect foresight wins only 0.23% here — and that is the finding.** This
-plant curtails 73% of its solar, so stored energy is not the binding
-constraint and there is almost nothing for a controller to win. The value of
-flexible operation is not extra compute from the same plant; it is *a smaller
-plant for the same compute*. That is Experiment B.
+`casey_governor` reimplements the governor described in
+[Casey Handmer's *Direct Current Data Centers*](https://caseyhandmer.wordpress.com/2026/01/30/direct-current-data-centers/):
+ration the battery over the hours until the sun returns, and throttle early
+rather than run flat out into a wall. It is the last rung a real operator could
+build with no forecast at all, so **the step from it to `forecast_mpc` is the
+value of weather forecasting**, and the step from `fixed_load` to it is the
+value of merely reacting to stored energy. Everything we had to invent to turn
+four sentences of prose into code is recorded in `ASSUMPTIONS.md` B14.
 
-Two upper bounds are reported because they answer different questions. The
-annual LP is the true ceiling — one optimisation over all 8760 hours, no horizon
-truncation, no terminal-value guesswork. The 48-hour receding-horizon MPC is
-what that structure achieves with finite lookahead, and it is *worse than doing
-nothing* at this sizing because its terminal value over-prices energy that is
-about to be curtailed anyway. In the de-rated regime, where energy genuinely
-binds, the same controller reaches 99.9% of the ceiling.
+### Experiment A — same plant, fifteen real weather years
 
-![Hardest 72 hours](results/difficult_window_dallas_10kgpu_ac_coupled_mv_coupled_pvgis.png)
+Median across 2010–2024, with involuntary shortfall printed beside compute
+**always** — a policy can score well on compute purely by browning out, and in
+the middle of this table one does.
 
-Read the figure top down: the sun nearly disappears for three days; `fixed_load`
-holds full power, empties the battery, and spends most of the last two days in
-involuntary shortfall (red); `simple_throttle` cuts power in crude SOC-triggered steps; the
-MPC over-throttles early then over-corrects; the annual planner holds a nearly
-constant ~7 MW, spending exactly the energy it has and no more.
-
-### Where flexibility actually pays
-
-Shrink solar and battery together and the picture inverts. Compute is shown with
-unserved energy beside it, always — a policy can buy compute by browning out,
-and the pair is the only honest read.
-
-| scale | solar MW | batt MW | `fixed_load` | `simple_throttle` | `mpc` (48 h) | `annual` |
+| scale | | `fixed_load` | `simple_throttle` | `casey_governor` | `forecast_mpc` | `pf_annual` |
 |---|---|---|---|---|---|---|
-| 1.00 | 199.6 | 122.6 | 8717 / 396 | 8687 / 0 | 8710 / 0 | **8738 / 0** |
-| 0.80 | 159.7 | 98.1 | 8650 / 1030 | 8597 / 0 | 8668 / 0 | **8695 / 0** |
-| 0.60 | 119.7 | 73.5 | 8455 / 2831 | 8313 / 0 | 8550 / 0 | **8563 / 0** |
-| 0.50 | 99.8 | 61.3 | 8262 / 4608 | 8030 / 0 | 8416 / 0 | **8420 / 0** |
-| 0.40 | 79.8 | 49.0 | 7941 / 7595 | 7532 / 0 | 8160 / 0 | **8161 / 0** |
-| 0.30 | 59.9 | 36.8 | 7134 / 15126 | 6556 / 22 | 7545 / 7 | **7546 / 0** |
-| 0.20 | 39.9 | 24.5 | 5653 / 28655 | 5104 / 276 | 6206 / 7 | **6205 / 0** |
+| 1.00 | compute | 8709 | 8702 | 8716 | 8721 | **8744** |
+| | vs fixed | — | −0.14% | +0.05% | +0.18% | **+0.40%** |
+| | shortfall | 473 | 0 | 9 | 0 | 0 |
+| 0.60 | compute | 8440 | 8386 | 8347 | 8588 | **8607** |
+| | vs fixed | — | −0.72% | −0.87% | +1.76% | **+2.02%** |
+| | shortfall | 3013 | 0 | 83 | 0 | 0 |
+| 0.40 | compute | 7965 | 7702 | 7742 | 8263 | **8290** |
+| | vs fixed | — | −3.36% | −3.01% | +3.68% | **+4.08%** |
+| | shortfall | 7490 | 0 | 216 | 0 | 0 |
+| 0.25 | compute | 6420 | 5920 | 6880 | 7311 | **7343** |
+| | vs fixed | — | −7.76% | **+6.88%** | **+13.85%** | **+14.21%** |
+| | shortfall | 22169 | 65 | 762 | 4 | 0 |
+| 0.20 | compute | 5634 | 5158 | 6234 | 6597 | **6627** |
+| | vs fixed | — | −8.66% | **+10.64%** | **+17.06%** | **+17.50%** |
+| | shortfall | 29427 | 228 | 927 | 9 | 0 |
 
-*(compute-unit-hours / MWh unserved)*
+*(compute-unit-hours; shortfall in MWh/yr; medians of 15 years)*
 
-![De-rated sweep](results/derate_sweep_dallas_10kgpu_ac_coupled_mv_coupled_pvgis.png)
+![Controller value vs scarcity](results/fig1_controller_value_vs_scarcity.png)
 
-The perfect-foresight advantage grows from **+0.23% at full size to +9.8% at
-one-fifth the plant**. Read the other way — the question Experiment B will ask
-properly — matching a fixed load's compute takes roughly **10–13% less
-solar+BESS capacity** under perfect foresight, across every target tested:
+Three things this says.
 
-| compute target | `fixed_load` needs | `annual` needs | |
-|---|---|---|---|
-| 8717 (fixed @ 1.00) | 1.00 | 0.904 | **−9.6%** |
-| 8455 (fixed @ 0.60) | 0.60 | 0.524 | **−12.6%** |
-| 7941 (fixed @ 0.40) | 0.40 | 0.353 | **−11.8%** |
+**Control is worth almost nothing until energy is scarce.** At the
+fixed-load-optimal sizing the plant curtails ~72% of its solar and even perfect
+foresight wins +0.40%. The value of flexible operation is not extra compute from
+the same plant; it is *a smaller plant for the same compute*. That is
+Experiment B.
 
-Interpolated between sampled scales and **not yet a defensible headline number**
-— it holds solar/battery ratio and duration fixed, uses a linear-cooling model
-that over-credits throttling (`ASSUMPTIONS` Q3), and prices no capital. Treat it
-as an indication of magnitude.
+**Read the 0.40 and 0.60 rows carefully — and read the shortfall column with
+them.** `fixed_load` beats both forecast-free heuristics on compute there while
+booking 3,000–7,500 MWh/yr of involuntary shortfall against their 83–216. Two
+readings were plausible and we tested which is right:
 
-`simple_throttle` is *worse* than doing nothing at every sizing, and gets worse
-as the plant shrinks. It throttles on SOC alone, so it cuts power on days that
-would have been fine. The gap between it and the MPC — 19.5 percentage
-points at scale 0.20 — is the value of knowing *when* to throttle.
+- *Is it an artefact of partial brownout credit?* The fleet-aggregation
+  assumption (`ASSUMPTIONS` B8) gives a browning-out plant partial compute
+  credit. **No — we checked.** Re-run under `per_device` aggregation, which
+  removes that credit, `fixed_load` moves by 0.2% and `casey_governor` gets
+  *slightly worse* (−3.19% → −3.67% at scale 0.40). The ranking is robust.
+- *Is the governor genuinely over-cautious here?* **Yes.** With no forecast it
+  must ration against the possibility that tomorrow is also dark, and in this
+  range that costs more compute than the brownouts it avoids.
 
-One caveat visible in the table: below scale 0.35 the MPC's compute edges past
-the annual ceiling, but only by accepting ~7 MWh of brownout. It is not a better
-policy, and the shortfall column is what stops that reading. The cause is the
-year boundary — the receding horizon truncates at 31 December, so the MPC ends
-the year empty and cannot power an idle fleet through the first January night.
-See `ASSUMPTIONS` B11.
+So this is a real limitation of forecast-free control, not a scoring trick. What
+the compute column *cannot* say is whether the trade is worth it: it assigns no
+penalty at all to 7,500 MWh of unserved load. Pricing that is exactly what
+Experiment B's reliability-matched variant does.
+
+**A forecast is worth roughly half the prize, and Casey's governor gets the
+other half.** At scale 0.25, of the 14.21 points perfect foresight is worth,
+the forecast-free governor captures 6.88 (48%) and the realistic forecast-aware
+MPC captures 13.85 (**97%**). Everything above `casey_governor` is what
+knowing the weather buys.
+
+### The mechanism, on the hardest weather in the record
+
+![Hardest drought](results/fig2_hardest_drought.png)
+
+The worst 72-hour solar drought in all fifteen years: **26 November 2015**,
+averaging 0.8% of nameplate for three days.
+
+**Read the bottom panel first — it is the whole story.**
+`perfect_foresight_annual` and `forecast_mpc` entered the drought with 122 and
+100 MWh in the battery because they *saw it coming*. `casey_governor` entered
+with 15 MWh, because it cannot see past the next sunrise. Its rationing
+*during* the drought is as disciplined as the optimum's — the two power traces
+are nearly the same shape — but it started with nothing to ration.
+
+The four power panels make the same point a second way. Inside this window all
+four policies produce almost identical compute (3.7 / 3.7 / 3.7 / 3.2
+compute-unit-hours): when the sun is this far gone, nobody computes much. What
+differs by two orders of magnitude is **unserved load** — 943 / 65 / 5 / 0 MWh.
+The fixed load is one solid block of red for five days.
+
+So the value of a forecast here is not better behaviour during the emergency. It
+is having charged up before it, and the difference shows up as reliability
+rather than as throughput.
+
+### Is the advantage consistent, or carried by a few bad years?
+
+![Distribution across weather years](results/fig5_year_distribution.png)
+
+**Consistent.** At scale 0.25 the three best years hold 21% of each controller's
+total gain, against 20% for a perfectly even spread, and every one of the
+fifteen years shows a positive advantage for `casey_governor`, `forecast_mpc`
+and `perfect_foresight_annual`. This is a property of the Dallas climate, not
+of two unlucky winters.
+
+That is worth stating because the opposite was the obvious prior, and because
+the weather data says the years genuinely differ: capacity factor ranges 0.229
+(2015) to 0.258 (2011), and the worst 72-hour drought ranges from 0.008 to 0.056
+of nameplate — a **sevenfold** spread. Notably, **annual sunniness barely
+predicts drought severity** (correlation +0.46), so no single "representative"
+year would have been defensible.
 
 ### How far ahead does it need to see?
 
-This one has a practical answer, and it is encouraging.
+At scale 0.25, where stored energy binds. Perfect foresight is worth 893
+compute-unit-hours over no control; "retained" is the share of *that* which a
+finite horizon keeps. Median of three years spanning the record — the drought
+year (2015), a mid-pack year (2019) and the sunniest (2022).
 
-| lookahead | scale 1.00 (over-built) | | scale 0.40 (where it matters) | |
-|---|---|---|---|---|
-| | compute | % of ceiling | compute | % of ceiling |
-| 24 h | 8654.2 (−0.73%) | 99.04% | 8140.7 (+2.51%) | **99.75%** |
-| 48 h | 8709.8 (−0.09%) | 99.68% | 8159.6 (+2.75%) | **99.99%** |
-| 96 h | 8728.7 (+0.13%) | 99.90% | 8160.4 (+2.76%) | **100.00%** |
-| annual LP | 8737.7 (+0.23%) | 100% | 8160.8 (+2.77%) | 100% |
+| lookahead | perfect foresight | | forecast-aware (10% nRMSE) | | unserved MWh |
+|---|---|---|---|---|---|
+| | compute | retained | compute | retained | |
+| 12 h | 7169 | 92.4% | 7156 | 91.0% | 116.6 |
+| 24 h | 7229 | 99.1% | **7216** | **97.6%** | 14.7 |
+| 48 h | 7236 | 99.9% | 7210 | 97.0% | 1.0 |
+| 96 h | 7237 | 100.0% | 7208 | 96.7% | 0.7 |
+| annual LP | 7237 | 100% | — | — | 0.0 |
 
-Monotone in horizon, as it must be. At the over-built sizing a two-day horizon
-is not enough to beat doing nothing — the March drought outlasts it — and four
-days is.
+> **Retained-of-advantage, not percent-of-ceiling.** Dividing by the ceiling
+> pins every entry near 100%, because the ceiling is only ~14% above doing
+> nothing. This column answers "how much of the prize does this horizon win?"
 
-**In the regime that matters the horizon barely matters at all:** 24 hours of
-lookahead already captures 99.75% of what infinite foresight is worth, and 48
-hours captures 99.99%.
+**Under perfect foresight the curve is monotone in horizon, as it must be.
+Under forecast error it peaks at 24 hours and turns down.** Past a day the
+forecast has decayed toward climatology, so extra lookahead adds error faster
+than information. The effect is small — 0.9 points from 24 h to 96 h — but it
+has the right sign, and it means "a longer horizon is always safer" stops being
+true the moment the horizon is a belief.
 
-> **Read that column carefully — it flatters short horizons.** "% of ceiling"
-> divides by a number that is only 2.77% above doing nothing, so every entry is
-> pinned near 100%. Measured against the *advantage* — the 219.6 compute-units
-> that separate no control from the ceiling — 24 hours captures **90.8%**, not
-> 99.75%, and 48 hours captures 99.5%. Both framings are arithmetically correct;
-> the second is the one that answers "how much of the prize does this horizon
-> win?", and it is the framing used from here on.
+The practical conclusion is unchanged and encouraging: **a deployable controller
+needs a good one-day solar forecast, not a great seasonal one.** A 12-hour
+horizon is the one to avoid — it cannot see across a night to the next day's
+generation, and both the perfect and the forecast-aware runs lose ~8 points and
+book two orders of magnitude more unserved energy there. That is a horizon
+pathology, not a forecasting one.
 
-Either way the practical conclusion holds: a deployable controller needs a good
-one-to-two-day solar forecast, not a great seasonal one. What that claim was
-missing is that it was measured with a *perfect* 24-hour forecast — which is
-the next section.
 
 ### What if the forecast is wrong?
 
-Every number above consumes the realised future, which makes them a ceiling
-rather than a design. This section replaces the truth with a **belief**: same
-controller, same solver, same plant, identical weather — only the information
-changes. `PerfectForesightMPCController` now refuses any forecast
-that could be wrong, so the two cannot be confused, and a test requires the two
-controllers to choose **bit-identical** actions when handed the same belief.
-Any gap below is therefore attributable to information and nothing else.
+Every foresight number above consumes the realised future, which makes it a
+ceiling rather than a design. This section replaces the truth with a **belief**:
+same controller, same solver, same plant, identical weather — only the
+information changes. `PerfectForesightMPCController` refuses any forecast that
+could be wrong, and a test requires the two controllers to choose bit-identical
+actions when handed the same belief, so any gap is attributable to information
+and nothing else.
 
-The error model (`ASSUMPTIONS` B13) scales error by each hour's **clear-sky
-potential** rather than by realised output — otherwise the forecast would be
-exactly right during every multi-day drought, which are the events that size
-an islanded plant. Error grows as √(lead time), persists on weather timescales,
-and is zero at lead 0. `sigma_24h = 0.15` lands at **9.9% nRMSE of capacity at
-day-ahead lead**, roughly what single-site day-ahead forecasting achieves.
+The sweep is indexed by **realised day-ahead nRMSE**, not by the error model's
+internal sigma. That matters across years: the same sigma lands at 9.5–10.5%
+realised error depending on the year's cloud cover, so a sigma-indexed sweep
+would compare different error levels while labelling them the same. Each year is
+calibrated independently.
 
-At scale 0.40, where stored energy binds. Perfect foresight is worth +219.6
-compute-units over no control; "retained" is the share of *that* which survives:
+> **nRMSE is an error magnitude, not a failure rate.** "10% forecast error"
+> means the RMS error is 10% of plant capacity. It does **not** mean the
+> forecast is wrong 10% of the time.
 
-| forecast | nRMSE @ 24 h | compute | unserved MWh | advantage retained |
+At scale 0.25, where stored energy binds. Perfect foresight is worth +923
+compute-unit-hours over no control; "kept" is the share of *that* which survives:
+
+| realised day-ahead nRMSE | compute | vs fixed | advantage kept | shortfall MWh |
 |---|---|---|---|---|
-| perfect foresight (annual LP) | — | 8160.8 | 0.0 | 100% (ceiling) |
-| perfect foresight, MPC 48 h | — | 8159.6 | 0.0 | 99.5% |
-| excellent | 3.5% | 8153.5 | 0.0 | 96.7% |
-| good | 6.8% | 8144.8 | 0.1 | 92.7% |
-| **realistic day-ahead** | **9.9%** | **8132.4** | **0.1** | **87.1%** |
-| mediocre | 12.7% | 8113.5 | 0.1 | 78.5% |
-| poor | 18.1% | 8071.8 | 0.1 | 59.5% |
-| no control (fixed load) | — | 7941.2 | 7594.8 | 0% |
+| perfect foresight (ceiling) | 7343 | +14.38% | 100% | 0.0 |
+| 5% | 7335 | +14.25% | **99.1%** | 1.4 |
+| **10% (reference)** | **7311** | **+13.88%** | **96.5%** | 4.2 |
+| 15% | 7275 | +13.31% | 92.6% | 9.1 |
+| 20% | 7218 | +12.42% | 86.4% | 16.1 |
+| no control | 6420 | — | 0% | 22169 |
 
-![What a wrong forecast costs](results/forecast_sweep_dallas_10kgpu_ac_coupled_mv_coupled_pvgis.png)
+![What a wrong forecast costs](results/fig3_forecast_error_sensitivity.png)
 
-**At realistic day-ahead skill the controller keeps 87% of what perfect
-foresight was worth.** The advantage of forecast-aware control is not an
-artefact of knowing the future — most of it survives not knowing.
+**At realistic day-ahead skill the controller keeps 96.5% of what perfect
+foresight was worth**, and every one of the fifteen years shows the same gentle
+slope. The response is close to linear across the whole 5–20% range, with no
+knee inside it.
 
-Four things qualify that, and the last one matters most.
+That is a markedly better result than the same experiment gave on a single TMY
+with the old GPU curve (87% retention), and the improvement is *not* a
+correction of an error — it comes from the two input changes. Both are declared:
+the LLM-training curve makes throttling cheaper in lost work than the ViT curve
+did, and real weather years contain deeper, better-signposted droughts than a
+TMY does.
 
-- **The degradation accelerates.** Retention falls 9.6 points across the first
-  6.4 points of nRMSE (3.5% → 9.9%), then 27.6 points across the next 8.2
-  (9.9% → 18.1%). Today's skill sits on the flat part of the curve, but the
-  margin above the knee is thinner than a linear read suggests: a forecast
-  twice as bad as current practice loses roughly 40% of the prize.
-- **It is not one lucky draw.** Three independent error realisations at the
-  same level give 8132.4 / 8132.0 / 8130.9 — a spread of 1.5 compute-units
-  against a 219.6 window, so 0.7 percentage points of retention.
-- **It is not bought by browning out.** Worst involuntary shortfall across
-  every run here is 1.7 MWh/yr, against 7,594.8 MWh/yr for the fixed load. The
-  column is reported because a controller *can* buy compute with brownouts
-  (`ASSUMPTIONS` B11); here it did not.
-- **This re-prices Experiment A's compute, not Experiment B's capital.** The
-  −7.8% saving attributed to control below is still a perfect-foresight number.
-  Re-running the sizing search under forecast error means hundreds of simulated
-  MPC-years, and it has not been done — so 87% retention must not be quietly
-  multiplied through to −6.8%. It is on the roadmap as open.
+Three qualifications, and the last one matters most.
 
-At the over-built sizing the picture inverts, as it must: with 73% of solar
-curtailed, information about the future is nearly worthless, and forecast error
-costs almost nothing because there was almost nothing to lose (8709.8 → 8702.1
-at realistic skill, −0.09%). The retention metric is meaningless there — the
-perfect-foresight MPC is itself *worse* than doing nothing (`ASSUMPTIONS` B10).
-
-#### Lookahead, once the lookahead is wrong
-
-The horizon result above was measured with a perfect forecast. Re-run at 9.9%
-nRMSE, longer lookahead now buys more foresight and more error at the same time:
-
-| lookahead | perfect foresight | | forecast-aware | | |
-|---|---|---|---|---|---|
-| | compute | retained | compute | retained | unserved MWh |
-| 12 h | 7802.6 | −63.1% | 7788.1 | −69.7% | 15.7 |
-| 24 h | 8140.7 | 90.8% | 8119.8 | 81.3% | 0.1 |
-| 48 h | **8159.6** | **99.5%** | **8132.4** | **87.1%** | 0.1 |
-| 96 h | 8160.4 | 99.8% | 8131.0 | 86.5% | 0.1 |
-
-**Under perfect foresight the curve is monotone in horizon; under error it
-peaks at 48 hours and turns down.** Past two days the forecast has decayed
-toward climatology, so the extra lookahead adds error faster than information.
-The effect is small — 1.4 compute-units from 48 h to 96 h — but it is the
-right sign, and it means "longer horizon is always safer" stops being true the
-moment the horizon is a belief.
-
-The 12-hour collapse is *not* a forecast failure: perfect foresight fails there
-too (7802.6, also below no control, with 18.7 MWh unserved). A half-day horizon
-cannot see across a night to the next day's generation, so the controller
-spends into a morning it cannot verify is coming. That is a horizon pathology,
-and forecast error adds only 14.5 compute-units on top of it.
+- **It is not bought by browning out.** Worst shortfall in the sweep is 16 MWh/yr
+  against 22,169 MWh/yr for the fixed load. The column is printed because a
+  controller *can* buy compute with brownouts (`ASSUMPTIONS` B11); here it did
+  not.
+- **The error model is still synthetic.** Its structure is defensible and its
+  two biases are declared — successive forecasts converge monotonically on the
+  truth (optimistic), error never averages away across re-plans (pessimistic) —
+  but the parameters are chosen to land near published skill, not fitted to a
+  measured error series. Read the *shape* of the response, not the value at one
+  point. See `ASSUMPTIONS` B13.
+- **Only solar is uncertain.** A real controller mis-forecasting a hot day gets
+  generation *and* cooling load wrong together, in the same direction. The
+  planner is still handed future PUE and demand exactly (`ASSUMPTIONS` B9).
 
 ### Experiment B — minimum capital for equal compute
 
-Every design must deliver the same annual compute as the reference plant
-(8717.45 compute-unit-hours). Solar MW, battery MW and battery *duration* are
-searched independently, priced with storage split into $/kW and $/kWh.
+Every design must deliver the same annual compute as the reference plant, on the
+same weather year. Solar MW, battery MW and battery *duration* are searched
+independently, priced with storage split into $/kW and $/kWh. Dallas 2019.
 
-| design | CAPEX | vs ref | solar MW | batt MW | batt MWh | duration | unserved |
-|---|---|---|---|---|---|---|---|
-| reference (sized for 99% uptime) | 376.0 M$ | — | 199.6 | 122.6 | 490 | 4.0 h | 396 |
-| `fixed_load`, re-sized | 291.7 M$ | −22.4% | 126.0 | 53.4 | 731 | 13.7 h | 395 |
-| `simple_throttle` | 325.0 M$ | −13.6% | 139.6 | 63.2 | 811 | 12.8 h | **0** |
-| `perfect_foresight_annual` | **269.0 M$** | **−28.5%** | 121.8 | 45.6 | 638 | 14.0 h | **0** |
+Two variants, because the first one is not quite a fair fight:
 
-**Most of that saving is not about control.** The decomposition matters more
-than the headline:
+- **B1 — equal compute only.** A design may hit its compute target partly by
+  browning out, and the re-sized fixed-load plant does.
+- **B2 — equal compute *and* equal reliability.** Annual involuntary shortfall
+  must also stay under a cap applied identically to everyone. The cap is what
+  the reference 99%-uptime plant *itself* books under a fixed load — derived
+  from the fixed-load design's own behaviour, not from the flexible ones, so it
+  cannot favour flexibility by construction (`ASSUMPTIONS` B18).
+
+#### The answer at free duration
+
+| design | CAPEX | vs reference | vs re-sized fixed load | solar MW | batt MW | batt MWh | duration | shortfall |
+|---|---|---|---|---|---|---|---|---|
+| reference (sized for 99% uptime) | 376.0 M$ | — | — | 199.6 | 122.6 | 490 | 4.0 h | 441 |
+| `fixed_load`, re-sized | 278.0 M$ | −26.1% | — | 115.4 | 51.7 | 734 | 14.2 h ! | 433 |
+| `casey_governor` | 274.1 M$ | −27.1% | **−1.4%** | 117.2 | 53.6 | 688 | 12.8 h ! | 9 |
+| `forecast_mpc` | *(searching)* | | | | | | | |
+| `perfect_foresight_annual` | **235.0 M$** | **−37.5%** | **−15.5%** | 98.8 | 49.0 | 595 | 12.1 h ! | **0** |
+
+`!` marks a duration outside the 2–10 h range the battery cost split is sourced
+over — those figures extrapolate it (`ASSUMPTIONS` B19).
+
+**B1 and B2 give the same answer.** The re-sized fixed-load plant lands at 433
+MWh against a 441 MWh cap, so the reliability constraint almost never binds;
+where it does (the fixed-12 h case, which drifts to 452 MWh under B1) it costs
++0.1 M$ to pull back. **The reliability mismatch that motivated B2 is real,
+measurable, and worth about a tenth of a percent of capital.** That is a
+stronger result than either variant alone: the earlier caveat was justified, and
+removing it does not change the conclusion.
+
+#### Where the saving comes from
 
 | effect | |
 |---|---|
-| changing the metric — 99% uptime → delivered compute, fixed load re-sized | **−22.4%** |
-| flexible operation on top of that | **−7.8%** |
-| total | −28.5% |
+| changing the metric — 99% uptime → delivered compute, fixed load re-sized | **−26.1%** |
+| perfect-foresight flexible operation on top of that | **−15.5%** |
+| what a forecast-free governor adds on its own | **−1.4%** |
 
 Sizing a plant for a 99%-uptime tail is expensive, and simply *measuring the
-right thing* recovers most of the cost. Quoting −28.5% as the value of
-forecast-aware control would overstate it by roughly a factor of three.
+right thing* still recovers most of the cost. Quoting the −37.5% total as the
+value of flexible control would overstate it by roughly a factor of two.
 
-Three further things the table says:
+**The previous ~7–8% figure did not survive — it roughly doubled.** On the
+measured LLM-training curve, perfect-foresight control is worth **−15.5%** of
+solar+BESS capital against a re-sized fixed load, not −7.8%. The change is not
+a correction of an arithmetic error; it is the GPU curve. LLM training gives up
+less throughput per watt than the ViT-inference proxy did (0.708 vs 0.624
+compute at half power), so throttling buys more. Roughly half of that shift is
+attributable to the power-cap axis rather than the workload, which is why the
+draw-axis sensitivity curve exists and why any quote of −15.5% must be
+accompanied by it.
 
-- **Nobody wants a 4-hour battery.** Every optimised design lands near 13–15
-  hours, with far less battery *power* (46–63 MW vs 122.6) and more *energy*
-  (638–820 MWh vs 490). An islanded solar plant needs to ride through multi-day
-  droughts, not deliver peaks. Upstream's fixed 4-hour coupling was hiding this.
-- **The flexible design is also more reliable.** At equal compute the re-sized
-  fixed load still browns out for 395 MWh a year; the flexible designs deliver
-  every watt they ask for. So the comparison is *not* reliability-matched — it
-  is unmatched in the flexible design's favour, and a reliability-constrained
-  re-run is on the roadmap.
-- **`simple_throttle` costs more than doing nothing** (+11.4% over the re-sized
-  fixed load), consistent with every other experiment here.
+#### Battery duration is not what the advantage rests on
 
-Repeating the whole thing with 30% of cooling made non-sheddable
-(`--cooling-fixed-fraction 0.30`) moves the total from −28.5% to −28.5%, and
-the control share from −7.8% to −7.5%. The result is not an artefact of the
-linear-cooling assumption.
+| duration | `fixed_load` | `casey_governor` | `perfect_foresight_annual` | control advantage |
+|---|---|---|---|---|
+| 4 h | 327.2 M$ | 320.9 M$ | 274.5 M$ | −16.1% |
+| 8 h | 290.1 M$ | 283.4 M$ | 244.8 M$ | −15.6% |
+| 12 h ! | 278.8 M$ | 272.5 M$ | 234.9 M$ | −15.7% |
+| free (12–14 h) ! | 278.0 M$ | 274.1 M$ | 235.0 M$ | −15.5% |
 
-> **This is an upper bound.** It uses perfect foresight, year-0 capital only (no
-> O&M, replacement, degradation or discounting), one weather year, one site, and
-> a GPU curve that is literature-derived rather than measured. It is a magnitude,
-> not a quotable figure.
->
-> The forecast-error sweep above shows 87% of the *compute* advantage surviving
-> realistic day-ahead skill, which is the reason to think −7.8% is reachable
-> rather than fictional. It is **not** a licence to restate it as −6.8%: that
-> conversion needs the capital search itself re-run under forecast error, which
-> has not been done.
+Two separate readings, and only one of them is safe.
+
+- **The control advantage is flat in duration** — −15.5% to −16.1% across the
+  whole range, including the 8-hour row which is *inside* the cost model's
+  sourced range. The headline does not depend on extrapolation.
+- **The absolute capital is not.** Forcing 4-hour storage costs 15–17% more than
+  letting duration float. So "nobody wants a 4-hour battery" reproduces — but
+  every free-duration optimum sits at 12–15 h, outside the 2–10 h range the
+  $/kW + $/kWh split is derived from, and that preference must **not** be quoted
+  as an economic finding about real batteries until the cost decomposition is
+  sourced over that range.
+
+> **This is still an upper bound.** Year-0 capital only — no O&M, no battery
+> replacement, no degradation, no discounting — on one weather year, one site,
+> and a curve whose power axis is a configured cap rather than measured draw.
+> It is a magnitude, not a quotable figure.
 
 ## Setup
 
@@ -333,22 +390,39 @@ python scripts/run_baseline.py --weather-source nsrdb
 ## Usage
 
 ```bash
-python scripts/run_baseline.py                   # build + optimise + write snapshot
-python scripts/run_baseline.py --check           # verify nothing has drifted
-python scripts/run_baseline.py --skip-optimizer  # fast path, probes only
-python scripts/run_baseline.py --location phoenix
-python scripts/run_experiment_a.py               # four strategies + figure
-python scripts/run_experiment_a.py --derate-sweep  # + shrink the plant
-python scripts/run_experiment_a.py --fast        # skip the MPC (seconds)
-python scripts/run_horizon_sweep.py              # how far ahead must it see?
-python scripts/run_forecast_sweep.py             # what if the forecast is wrong?
-python scripts/run_experiment_b.py               # minimum capital for equal compute
-python -m pytest                                 # project tests
-cd upstream && python -m pytest tests/           # reference model's own tests
+python scripts/run_baseline.py                    # build + optimise + write snapshot
+python scripts/run_baseline.py --check            # verify nothing has drifted
+
+python scripts/fetch_weather_years.py             # cache Dallas 2010-2024 (ERA5, no key)
+python scripts/fetch_weather_years.py --check     # what is cached
+
+python scripts/run_multiyear_experiment_a.py      # 6 policies x 15 years x 5 scales
+python scripts/run_forecast_sweep_multiyear.py    # what a wrong forecast costs
+python scripts/run_experiment_b2.py --weather-year 2019 \
+       --variants B1 B2 --durations 4 8 12 free   # minimum capital, both variants
+python scripts/make_figures.py                    # the five headline figures
+
+python -m pytest                                  # project tests
+cd upstream && python -m pytest tests/            # reference model's own tests
 ```
 
-First run fetches weather (a few seconds) and caches it under `data/weather/`.
-Every run after that is fully offline and deterministic.
+Sensitivity is a flag, not a rewrite:
+
+```bash
+--curve h100_llama3_pretrain_drawaxis_sensitivity  # measured-draw power axis
+--curve h100_vit_l16_inference_ujeniya2026         # the old literature-derived proxy
+--aggregation per_device                           # no partial credit during brownouts
+--cooling-fixed-fraction 0.3                       # non-sheddable cooling
+--forecast-nrmse-pct 15                            # a worse day-ahead forecast
+```
+
+Weather comes from Open-Meteo (ERA5) and PVGIS by default — no API key, no
+account. For NSRDB satellite data (2018-2024 only), get a free key at
+<https://developer.nlr.gov/signup/> and export `NLR_API_KEY` / `NLR_EMAIL`.
+
+First run fetches weather and caches it under `data/weather/`. Every run after
+that is fully offline and deterministic.
+
 
 ## Design rules
 
@@ -372,10 +446,13 @@ These are constraints on the work, not aspirations.
    Milestone 6 the label is enforced too: `PerfectForesightMPCController`
    rejects any forecast that could be wrong, so a perfect-foresight result
    cannot be produced by a run labelled otherwise, or vice versa.
-5. **GPU performance data carries its provenance.** Every curve declares whether
-   it is `synthetic`, `literature_derived` or `measured`, cites its source, and
-   refuses to extrapolate below the power range that source actually covers.
-   The kind travels with every result.
+5. **GPU performance data carries its provenance, on both axes separately.**
+   Every curve declares whether it is `synthetic`, `literature_derived` or
+   `measured`, whether its power axis is `measured_draw` or a `power_cap`,
+   whether its throughput is `direct_measurement` or `inferred`, and at what
+   scale it was measured. It refuses to extrapolate below the power range its
+   source covers. All of it travels with every result. The primary curve is
+   `measured` on throughput and a `power_cap` on power, and says so.
 6. **The optimiser and the simulator must agree.** The MPC plans against a
    second, independent model of the plant, so a test requires the LP's predicted
    compute to equal the dispatcher's measured compute for the same schedule.
@@ -383,7 +460,20 @@ These are constraints on the work, not aspirations.
 7. **The year must be self-sustaining.** Every comparison enforces
    end-of-year SOC = start-of-year SOC by fixed-point iteration, so no strategy
    is credited with energy nobody generated.
-8. **Assumptions are labelled, and assumptions that favour our hypothesis are
+8. **A calendar is not a forecast.** `solar_clock.py` supplies solar geometry,
+   which any operator knows years ahead; `forecast.py` supplies beliefs about
+   weather, which must be handed over explicitly. `CaseyGovernor` receives only
+   the former plus `PlantConstants`, a scalars-only object with no field capable
+   of holding a time series — so it is structurally unable to see ahead, and a
+   test proves its actions are invariant to every future solar value.
+9. **Weather sources are never mixed within a study.** A change of instrument
+   between two years is indistinguishable from weather in the output, so
+   `fetch_weather_years.py` refuses to substitute one source for another's
+   missing years. Years are simulated independently and never averaged.
+10. **Performance work must not move a number.** The compiled MPC window LP is
+   ~2.7x faster and is gated by a test requiring it to reproduce the reference
+   solver's hourly actions to 1e-9 and its annual compute to 1e-12.
+11. **Assumptions are labelled, and assumptions that favour our hypothesis are
    labelled loudest.** See `ASSUMPTIONS.md` §5, "Threats to validity".
 
 ## Repository layout
@@ -392,7 +482,11 @@ These are constraints on the work, not aspirations.
 upstream/               vendored reference model (read-only)
 src/flexcompute/
   upstream_bridge.py    import/path plumbing for the vendored model
-  weather.py            TMY providers (PVGIS / NSRDB) + local-time normalisation
+  weather.py            typical + historical weather providers, local-time
+                        normalisation, explicit leap-day policy
+  pv_model.py           undoes upstream's per-year PV renormalisation (B16)
+  solar_clock.py        solar geometry as a calendar -- never a forecast
+  multiyear.py          year sets, drought detection, aggregation, parallelism
   scenario.py           Scenario -> Site: the shared, controller-independent world
   baseline.py           fixed-load runs and seeded sizing optimisation
   metrics.py            metric extraction + energy-conservation audit

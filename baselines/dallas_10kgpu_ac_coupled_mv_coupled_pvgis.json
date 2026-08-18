@@ -236,24 +236,29 @@
     "it_load_max_mw": 10.625,
     "scenario": {
       "architecture": "ac_coupled",
+      "historical_weather_source": "open_meteo_era5",
       "location": "dallas",
       "required_uptime_pct": 99.0,
       "seed": 20260815,
       "topology": "mv_coupled",
       "total_gpus": 10000,
-      "weather_source": "pvgis"
+      "weather_source": "pvgis",
+      "weather_year": null
     },
-    "scenario_key": "7c92fd77561e",
+    "scenario_key": "41cc2a6f408d",
     "solar_capacity_factor_of_peak": 0.2510395847912915,
     "upstream_commit": "72972aa",
     "weather": {
+      "dataset": "",
       "latitude": 32.78,
+      "leap_day_dropped": false,
       "longitude": -96.8,
       "notes": "PVGIS TMY via pvlib.iotools.get_pvgis_tmy; source timestamps UTC.",
       "retrieved_utc": "2026-08-15T23:48:31+00:00",
       "source": "pvgis",
       "timezone_name": "America/Chicago",
-      "utc_offset_hours": -6.0
+      "utc_offset_hours": -6.0,
+      "year": null
     },
     "weather_summary": {
       "dni_annual_kwh_per_m2": 2139.30227,

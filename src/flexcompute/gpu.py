@@ -56,10 +56,38 @@ import numpy as np
 
 CurveKind = Literal["synthetic", "literature_derived", "measured"]
 
+#: What the x-axis of a curve actually is.
+#:
+#: ``measured_draw``  -- power the GPU was observed to consume.
+#: ``power_cap``      -- the cap that was *configured*. A part-loaded GPU may
+#:                       draw less than its cap, so treating a cap as a draw
+#:                       understates real consumption at that operating point.
+#:                       Curves in this basis must say so; the simulator spends
+#:                       the number as if it were consumption.
+PowerBasis = Literal["measured_draw", "power_cap"]
+
+#: What the y-axis actually is.
+#:
+#: ``direct_measurement`` -- the source reports application throughput.
+#: ``inferred``           -- throughput was derived from a proxy (SM clock,
+#:                           FLOPS estimate) by us or by the source.
+ThroughputBasis = Literal["direct_measurement", "inferred"]
+
 
 @dataclass(frozen=True)
 class CurveProvenance:
-    """Where a power-performance curve came from, and what was assumed."""
+    """Where a power-performance curve came from, and what was assumed.
+
+    Aliased as :data:`GpuPerformanceProfile`, which reads better at a call site
+    that is describing a piece of hardware running a workload rather than
+    annotating an array.
+
+    ``power_basis`` and ``throughput_basis`` are separate fields because they
+    fail independently. A curve can have directly measured throughput plotted
+    against a configured power cap — which is the best available data for H100
+    LLM training — and reporting it as "measured" without qualification would
+    overstate one axis while understating the other.
+    """
 
     name: str
     kind: CurveKind
@@ -72,9 +100,20 @@ class CurveProvenance:
     source_url: str | None = None
     derivation: str = ""
     caveats: tuple[str, ...] = ()
+    #: e.g. "single node, 4x H100, per-GPU basis". Exists so that a few-GPU
+    #: bench can never be quoted as if it characterised a 10,000-GPU fleet.
+    measurement_scope: str | None = None
+    power_basis: PowerBasis | None = None
+    throughput_basis: ThroughputBasis | None = None
+    #: Free-form pointer to the exact table or figure the numbers were read from.
+    source: str | None = None
 
     def as_dict(self) -> dict:
         return asdict(self)
+
+
+#: Preferred spelling when declaring a new hardware/workload profile.
+GpuPerformanceProfile = CurveProvenance
 
 
 @dataclass(frozen=True)
@@ -123,6 +162,11 @@ class PowerPerformanceCurve:
     def is_measured(self) -> bool:
         return self.provenance.kind == "measured"
 
+    @property
+    def measures_consumed_power(self) -> bool:
+        """True when the x-axis is observed draw rather than a configured cap."""
+        return self.provenance.power_basis == "measured_draw"
+
     def warn_if_not_measured(self) -> None:
         if not self.is_measured:
             warnings.warn(
@@ -131,6 +175,30 @@ class PowerPerformanceCurve:
                 "their magnitude is not a claim about real hardware.",
                 stacklevel=2,
             )
+
+    def basis_warnings(self) -> list[str]:
+        """Every way in which this curve falls short of a direct measurement.
+
+        Separate from :meth:`warn_if_not_measured` because the two axes fail
+        independently, and the primary curve fails only on one of them: its
+        throughput is measured, its power is a configured cap. Reporting code
+        prints this list so neither half can be quietly dropped.
+        """
+        problems: list[str] = []
+        if not self.is_measured:
+            problems.append(f"curve kind is '{self.provenance.kind}', not 'measured'")
+        if self.provenance.power_basis == "power_cap":
+            problems.append(
+                "x-axis is the configured power cap, not measured average draw; "
+                "the simulator spends the cap as if it were consumption"
+            )
+        elif self.provenance.power_basis is None:
+            problems.append("power basis is undeclared")
+        if self.provenance.throughput_basis == "inferred":
+            problems.append("y-axis throughput is inferred from a proxy, not measured")
+        elif self.provenance.throughput_basis is None:
+            problems.append("throughput basis is undeclared")
+        return problems
 
     # -- evaluation --------------------------------------------------------
     def compute_fraction_at(self, power_fraction) -> np.ndarray:
@@ -238,8 +306,245 @@ SYNTHETIC_CONCAVE_V1 = PowerPerformanceCurve(
             "Not a measurement. Use only for structural testing and sensitivity "
             "bounds, never for a quoted result.",
         ),
+        measurement_scope="none (invented)",
+        power_basis=None,
+        throughput_basis=None,
+        source="none",
     ),
 )
+
+
+# ---------------------------------------------------------------------------
+# Mayr et al. 2026 — directly measured application throughput under power caps
+# ---------------------------------------------------------------------------
+#
+# Source: M. Mayr, S. Wind, L. Schroeder, M. Moradi, G. Hager, H. Koestler,
+# G. Wellein, "AI Application Benchmarking: Power-Aware Performance Analysis
+# for Vision and Language Models", arXiv:2603.16164.
+#
+# Read from the paper's own result tables (HTML text layer, not digitised from
+# pixels). Both workloads below were measured on the same node, at the same six
+# power caps, with the same protocol.
+#
+# What the paper does *not* report, and what therefore has to be labelled:
+# there is no table of measured average GPU power draw per cap. Figure 1 plots
+# energy efficiency against performance but does not annotate the values. So
+# the x-axis of these curves is the **configured power cap**, not consumption.
+
+_MAYR_CAP_W = np.array([200.0, 300.0, 400.0, 500.0, 600.0, 700.0])
+
+_MAYR_SOURCE = dict(
+    source_title=(
+        "AI Application Benchmarking: Power-Aware Performance Analysis for "
+        "Vision and Language Models"
+    ),
+    source_authors="Mayr, Wind, Schroeder, Moradi, Hager, Koestler, Wellein",
+    source_id="arXiv:2603.16164",
+    source_url="https://arxiv.org/abs/2603.16164",
+    measurement_scope=(
+        "Single node, 4x NVIDIA H100 (Lenovo SD665-N V3), reported per-GPU. "
+        "NOT a cluster-scale measurement: no multi-node interconnect, no "
+        "straggler or synchronisation effects, no scale-out communication."
+    ),
+)
+
+_MAYR_CAP_CAVEAT = (
+    "x-axis is the *configured power cap*, not measured average draw. The "
+    "paper reports no per-cap average power. A GPU may draw less than its cap, "
+    "so this axis is an upper bound on consumption at each point; treating it "
+    "as consumption understates compute per watt at part load. See the "
+    "companion curve h100_llama3_pretrain_drawaxis_sensitivity for a bound on "
+    "the size of that effect."
+)
+
+
+def _h100_llama3_pretrain_curve() -> PowerPerformanceCurve:
+    """H100 running LLaMA 3 8B continued pre-training. **The primary curve.**
+
+    Table 4 of arXiv:2603.16164, "Pre-training / H100" row, per-GPU tokens per
+    second against the configured power cap:
+
+    | power cap | tokens/s per GPU |
+    |-----------|------------------|
+    | 200 W     |  9,699.3         |
+    | 300 W     | 17,982.3         |
+    | 400 W     | 24,853.4         |
+    | 500 W     | 27,705.3         |
+    | 600 W     | 29,250.0         |
+    | 700 W     | 30,271.0         |
+
+    Both axes are normalised to the 700 W row, which is the GPU's TDP and the
+    workload's unconstrained operating point.
+
+    Why this replaces the ViT curve as primary: throughput here is the
+    application's own reported token rate, logged per training step through
+    framework callbacks. No proxy, no inference step of ours. And the workload
+    is LLM *training*, which is what the reference model's flat 24/7 load
+    profile is meant to represent — the previous curve measured vision-model
+    inference and stood in for training only by assumption.
+
+    The remaining weakness is the power axis, and it is declared rather than
+    papered over: see :data:`_MAYR_CAP_CAVEAT`.
+    """
+    tokens_per_s = np.array([9699.3, 17982.3, 24853.4, 27705.3, 29250.0, 30271.0])
+    return PowerPerformanceCurve(
+        power_fraction=_MAYR_CAP_W / _MAYR_CAP_W[-1],
+        compute_fraction=tokens_per_s / tokens_per_s[-1],
+        # Not measured by the source. H100 idle is commonly quoted near 70-100 W
+        # against a 700 W TDP; held as an explicit assumption of ours.
+        idle_power_fraction=0.10,
+        provenance=CurveProvenance(
+            name="h100_llama3_8b_pretrain_mayr2026",
+            kind="measured",
+            gpu="NVIDIA H100 SXM (94 GB HBM2e, 700 W TDP), P0 power state",
+            workload="LLaMA 3 8B continued pre-training, LitGPT",
+            precision=(
+                "not stated per-workload by the source; NGC PyTorch 2.8.0 / "
+                "CUDA 12.9 defaults with TF32 available"
+            ),
+            derivation=(
+                "Read directly from Table 4 (Pre-training, H100). Power "
+                "fraction = configured cap / 700 W. Compute fraction = measured "
+                "tokens/s / 30,271 tokens/s at the 700 W cap. No proxy variable "
+                "and no inference step introduced by this project."
+            ),
+            caveats=(
+                _MAYR_CAP_CAVEAT,
+                "Single-node, 4-GPU measurement reported per GPU. It does not "
+                "characterise a 10,000-GPU fleet; cluster-scale communication "
+                "and straggler effects are absent and would flatten the curve.",
+                "Batch size is 'the highest that remains stable' per the "
+                "paper's protocol, not a stated number, so the operating point "
+                "is not exactly reproducible from the publication alone.",
+                "Continued pre-training on a ~30M-token English corpus; a "
+                "production run at scale differs in data pipeline and "
+                "parallelism strategy.",
+                "Domain floor is 0.286 of full power; below that the fleet is "
+                "modelled as parked rather than extrapolated.",
+            ),
+            source="arXiv:2603.16164, Table 4, row 'Pre-training / H100'",
+            power_basis="power_cap",
+            throughput_basis="direct_measurement",
+            **_MAYR_SOURCE,
+        ),
+    )
+
+
+def _h100_vit_train_measured_curve() -> PowerPerformanceCurve:
+    """H100 running ViT-L/16 *training*, directly measured. A cross-check.
+
+    Table 3 of arXiv:2603.16164, "ViT-L/16 / H100" row, per-GPU samples per
+    second against the configured power cap.
+
+    This exists to price one specific inference step. The previous primary
+    curve took SM clock as a throughput proxy for ViT-L/16 on the same GPU
+    family at the same caps. Here the same benchmark's throughput is reported
+    directly, so the two can be compared and the proxy's error measured rather
+    than argued about. See ``tests/test_gpu_curve.py``.
+    """
+    samples_per_s = np.array([116.40, 214.90, 259.00, 280.05, 297.79, 305.97])
+    return PowerPerformanceCurve(
+        power_fraction=_MAYR_CAP_W / _MAYR_CAP_W[-1],
+        compute_fraction=samples_per_s / samples_per_s[-1],
+        idle_power_fraction=0.10,
+        provenance=CurveProvenance(
+            name="h100_vit_l16_train_mayr2026",
+            kind="measured",
+            gpu="NVIDIA H100 SXM (94 GB HBM2e, 700 W TDP), P0 power state",
+            workload="Vision Transformer ViT-L/16 training, 224x224 inputs",
+            precision="NGC PyTorch defaults; TF32 available",
+            derivation=(
+                "Read directly from Table 3 (ViT-L/16, H100). Power fraction = "
+                "configured cap / 700 W. Compute fraction = measured samples/s "
+                "/ 305.97 samples/s at the 700 W cap."
+            ),
+            caveats=(
+                _MAYR_CAP_CAVEAT,
+                "Vision-model training, not LLM training. Retained as a "
+                "sensitivity case and as a direct-measurement control for the "
+                "SM-clock proxy used by h100_vit_l16_inference_ujeniya2026.",
+                "Single-node, 4-GPU measurement reported per GPU.",
+            ),
+            source="arXiv:2603.16164, Table 3, row 'ViT-L/16 / H100'",
+            power_basis="power_cap",
+            throughput_basis="direct_measurement",
+            **_MAYR_SOURCE,
+        ),
+    )
+
+
+def _h100_llama3_draw_axis_curve() -> PowerPerformanceCurve:
+    """The primary curve's throughput, re-plotted against measured power draw.
+
+    A sensitivity case, and the only quantitative handle available on how much
+    the power-cap axis distorts the result.
+
+    Mayr et al. report no average draw. Ujeniya et al. (arXiv:2604.11391) do,
+    for an H100 at the same six caps — but for ViT-L/16, a different workload:
+
+    | power cap | measured avg draw (GPU + memory) |
+    |-----------|----------------------------------|
+    | 200 W     | 199 W |
+    | 300 W     | 298 W |
+    | 400 W     | 395 W |
+    | 500 W     | 493 W |
+    | 600 W     | 591 W |
+    | 700 W     | 647 W |
+
+    Pairing those draws with the LLM-training throughputs assumes the two
+    workloads track their caps identically. They do not, necessarily: a
+    memory-heavier workload sits further below its cap. So this curve is
+    ``literature_derived`` and exists only to bound the error, not to be
+    quoted. Note the direction — the measured draw saturates 53 W below the
+    700 W cap, so the true full-power point is *lower* than the cap and this
+    curve is the more pessimistic of the two for a throttling strategy.
+    """
+    measured_w = np.array([199.0, 298.0, 395.0, 493.0, 591.0, 647.0])
+    tokens_per_s = np.array([9699.3, 17982.3, 24853.4, 27705.3, 29250.0, 30271.0])
+    return PowerPerformanceCurve(
+        power_fraction=measured_w / measured_w[-1],
+        compute_fraction=tokens_per_s / tokens_per_s[-1],
+        idle_power_fraction=0.10,
+        provenance=CurveProvenance(
+            name="h100_llama3_pretrain_drawaxis_sensitivity",
+            kind="literature_derived",
+            gpu="NVIDIA H100 (700 W TDP)",
+            workload="LLaMA 3 8B continued pre-training, LitGPT",
+            precision="see h100_llama3_8b_pretrain_mayr2026",
+            source_title=(
+                "Throughput from Mayr et al. 2026 Table 4; power draw from "
+                "Ujeniya et al. 2026 Fig. 9b"
+            ),
+            source_authors=(
+                "Mayr, Wind, Schroeder, Moradi, Hager, Koestler, Wellein "
+                "(throughput); Ujeniya, Eitzinger, Hager, Wellein (power)"
+            ),
+            source_id="arXiv:2603.16164 + arXiv:2604.11391",
+            source_url="https://arxiv.org/abs/2603.16164",
+            derivation=(
+                "Measured LLM-training tokens/s (arXiv:2603.16164 Table 4) "
+                "plotted against measured H100 average power draw at the same "
+                "caps (arXiv:2604.11391 Fig. 9b). The cross-workload "
+                "substitution of the power axis is ours."
+            ),
+            caveats=(
+                "The power axis was measured while running a DIFFERENT "
+                "workload (ViT-L/16) from the throughput axis. How far a GPU "
+                "sits below its cap is workload-dependent, so this pairing is "
+                "an approximation and the curve must not be quoted as a "
+                "measurement.",
+                "Use only to bound how much the power-cap axis of the primary "
+                "curve distorts the headline result.",
+            ),
+            source="arXiv:2603.16164 Table 4 + arXiv:2604.11391 Fig. 9b",
+            measurement_scope=(
+                "Both sources are single-node, few-GPU benchmarks reported "
+                "per GPU."
+            ),
+            power_basis="measured_draw",
+            throughput_basis="direct_measurement",
+        ),
+    )
 
 
 def _h100_vit_curve() -> PowerPerformanceCurve:
@@ -313,17 +618,44 @@ def _h100_vit_curve() -> PowerPerformanceCurve:
                 "Domain floor is 0.308 of full power; below that the fleet is "
                 "modelled as parked rather than extrapolated.",
             ),
+            source="arXiv:2604.11391v2, Fig. 6b (SM clock) + Fig. 9b (power draw)",
+            measurement_scope="Single GPU. Not a cluster-scale measurement.",
+            power_basis="measured_draw",
+            throughput_basis="inferred",
         ),
     )
 
 
 H100_VIT_L16_INFERENCE = _h100_vit_curve()
+H100_LLAMA3_PRETRAIN = _h100_llama3_pretrain_curve()
+H100_VIT_L16_TRAIN = _h100_vit_train_measured_curve()
+H100_LLAMA3_DRAW_AXIS = _h100_llama3_draw_axis_curve()
 
 CURVES: dict[str, PowerPerformanceCurve] = {
-    c.provenance.name: c for c in (SYNTHETIC_CONCAVE_V1, H100_VIT_L16_INFERENCE)
+    c.provenance.name: c
+    for c in (
+        SYNTHETIC_CONCAVE_V1,
+        H100_VIT_L16_INFERENCE,
+        H100_LLAMA3_PRETRAIN,
+        H100_VIT_L16_TRAIN,
+        H100_LLAMA3_DRAW_AXIS,
+    )
 }
 
-DEFAULT_CURVE_NAME = "h100_vit_l16_inference_ujeniya2026"
+#: The primary curve. LLM training, directly measured throughput, on the GPU
+#: and workload the reference model is actually meant to represent. Changed
+#: from the ViT/SM-clock proxy in Milestone 7; every result predating that
+#: change was computed on the old curve and is not comparable.
+DEFAULT_CURVE_NAME = "h100_llama3_8b_pretrain_mayr2026"
+
+#: Curves a headline claim should be re-run against, in reporting order.
+SENSITIVITY_CURVE_NAMES = (
+    "h100_llama3_8b_pretrain_mayr2026",       # primary: LLM training, measured
+    "h100_llama3_pretrain_drawaxis_sensitivity",  # same, on a measured-draw axis
+    "h100_vit_l16_train_mayr2026",            # different workload, measured
+    "h100_vit_l16_inference_ujeniya2026",     # the old literature-derived proxy
+    "synthetic_concave_v1",                   # structural sensitivity only
+)
 
 
 def get_curve(name: str = DEFAULT_CURVE_NAME) -> PowerPerformanceCurve:
